@@ -24,16 +24,22 @@ async def on_ready():
 
 @client.slash_command(name="banstatus")
 async def ban_status(ctx, steam_id):
+    if steam_id is None:
+        await ctx.respond("Please provide a Steam ID or custom URL!")
+        return
     possible_id = get_user_id(steam_id)
     if possible_id is not None:
         data = get_player_ban(possible_id)
+        url = f"http://steamcommunity.com/profiles/{possible_id}/"
     else:
+        url = f"http://steamcommunity.com/profiles/{steam_id}/"
         data = get_player_ban(steam_id)
+
     if data is None:
         await ctx.respond("Could not find a player with that name or ID!")
         return
     embed = discord.Embed(title=f"Profile of {steam_id}", type='rich',
-                          color=0x0c0c28, url=f"http://steamcommunity.com/profiles/{steam_id}/")
+                          color=0x0c0c28, url=url)
     embed.add_field(name=f"VAC Banned?", value=data['VACBanned'])
     embed.add_field(name=f"Days Since Last Ban", value=data['DaysSinceLastBan'])
 
@@ -44,7 +50,7 @@ async def ban_status(ctx, steam_id):
 async def cs_news(ctx):
     data = get_app_data()
     embed = discord.Embed(title=f"CSGO News", type='rich',
-                          color=0x0c0c28)
+                          color=0x0c0c28, url="https://blog.counter-strike.net/")
     html_tags = re.compile(r'<[^>]+>')
     embed.add_field(name=f"{data['title']}", value=html_tags.sub('', data['contents']))
     await ctx.respond(embed=embed)

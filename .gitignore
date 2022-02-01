@@ -102,3 +102,4 @@ cython_debug/
 .idea/
 
 .key
+python3/

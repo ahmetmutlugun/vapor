@@ -4,6 +4,8 @@ import json
 from discord.ext import commands
 import logging
 import re
+import redis
+import os
 
 logging.log(20, "Program Started")
 client = commands.Bot(description="Bringing Steam features as a Discord bot.")
@@ -13,6 +15,8 @@ guilds = []
 
 file = open("keys/steam.key", "r")
 steam_key = file.read()
+
+db = redis.Redis(os.environ.get("REDIS_HOST", "localhost"), port=6379, db=0)
 
 
 @client.event

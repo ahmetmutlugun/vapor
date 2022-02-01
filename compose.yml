@@ -1,0 +1,16 @@
+version: '3.6'
+services:
+  app:
+    build: .
+    depends_on:
+      - redis
+    environment:
+      - REDIS_HOST=redis
+    container_name: vapor_bot
+  redis:
+    image: redis:alpine
+    container_name: steam_ids
+    ports:
+      - "6379:6379"
+
+

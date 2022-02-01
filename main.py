@@ -22,6 +22,7 @@ async def on_ready():
         guilds.append(guild)
 
 
+# TODO Display more information in the Embed
 @client.slash_command(name="banstatus")
 async def ban_status(ctx, steam_id):
     if steam_id is None:
@@ -46,6 +47,7 @@ async def ban_status(ctx, steam_id):
     await ctx.respond(embed=embed)
 
 
+# TODO Include URL to the news website
 @client.slash_command(name="csnews", guilds_ids=guilds)
 async def cs_news(ctx):
     data = get_app_data()

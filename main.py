@@ -2,26 +2,27 @@ import requests
 import discord
 import json
 from discord.ext import commands
-import logging
 import re
 import redis
 import os
-
-logging.log(20, "Program Started")
+import logging
+logging.log(20, "Running Script...")
 client = commands.Bot(description="Bringing Steam features as a Discord bot.")
 
 headers = {'Accept': 'application/json'}
 guilds = []
 
-file = open("keys/steam.key", "r")
-steam_key = file.read()
+file2 = open("keys/steam.key", "r")
+steam_key = file2.read()
+file2.close()
 
-db = redis.Redis(os.environ.get("REDIS_HOST", "localhost"), port=6379, db=0)
+r = redis.Redis(os.environ.get("REDIS_HOST", "localhost"), 6379, 0)
+r.set("ahmet", "patates")
 
 
 @client.event
 async def on_ready():
-    print(f"Logged in as {client.user} (Discord ID: {client.user.id})")
+    logging.log(20, f"Logged in as {client.user} (Discord ID: {client.user.id})")
     for guild in client.guilds:
         guilds.append(guild)
 
@@ -54,12 +55,28 @@ async def ban_status(ctx, steam_id):
 # TODO Include URL to the news website
 @client.slash_command(name="csnews", guilds_ids=guilds)
 async def cs_news(ctx):
+    await ctx.respond(r.get("ahmet"))
     data = get_app_data()
     embed = discord.Embed(title=f"CSGO News", type='rich',
                           color=0x0c0c28, url="https://blog.counter-strike.net/")
     html_tags = re.compile(r'<[^>]+>')
     embed.add_field(name=f"{data['title']}", value=html_tags.sub('', data['contents']))
     await ctx.respond(embed=embed)
+
+
+@client.slash_command(name="setid")
+async def set_id(ctx, steam_id):
+    r.set(ctx.author.id, steam_id)
+    logging.log(20, r.get(ctx.author.id))
+    await ctx.respond(f"Steam Account {steam_id} successfully linked!")
+
+
+@client.slash_command(name="getid")
+async def get_id(ctx):
+    user_id_response = r.get(ctx.author.id)
+    if user_id_response is not None:
+        await ctx.respond(f"{user_id_response}")
+    await ctx.respond(f"Please use /setid to set your Steam ID!")
 
 
 def get_player_ban(steam_id):
@@ -92,4 +109,5 @@ def get_user_id(name: str):
 
 file = open("keys/discord.key", "r")
 token = file.read()
+file.close()
 client.run(token)

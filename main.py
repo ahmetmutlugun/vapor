@@ -76,13 +76,13 @@ async def set_id(ctx, steam_id):
     res = cur.fetchall()
     # If a row doesn't exist for a user insert into the table
     if res is None:
-        cur.execute("INSERT INTO steam_data (discord_id, steam_id) VALUES (%s, %s, %s)", ctx.author.id, steam_id)
+        cur.execute("INSERT INTO steam_data (discord_id, steam_id) VALUES (%s, %s, %s)", (ctx.author.id, steam_id))
     # If a row does exist for a user update the steam_id for the discord user
     else:
-        cur.execute("UPDATE steam_data SET steam_id=%s WHERE discord_id=%s", steam_id, ctx.author.id)
+        cur.execute("UPDATE steam_data SET steam_id=%s WHERE discord_id=%s", (steam_id, ctx.author.id))
 
     # Commit changes
-    cur.commit()
+    conn.commit()
     # Close the cursor
     cur.close()
     # logging.log(20, r.get(ctx.author.id))
@@ -93,11 +93,11 @@ async def set_id(ctx, steam_id):
 async def get_id(ctx):
     cur = conn.cursor()
     cur.execute("SELECT steam_id FROM steam_data WHERE discord_id=%s", ctx.author.id)
-    user_id_response = cur.fetchall()
+    steam_id = cur.fetchone()[0]
     cur.close()
-    if user_id_response is not None:
-        await ctx.respond(f"Your steam ID is: {user_id_response[0][0]}")
-    await ctx.respond(f"Please use /setid to set your Steam ID!")
+    if steam_id == "":
+        await ctx.respond(f"Please use /setid to set your Steam ID!")
+    await ctx.respond(f"Your steam ID is: {steam_id}")
 
 
 def get_player_ban(steam_id):

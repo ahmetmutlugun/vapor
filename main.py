@@ -70,34 +70,34 @@ async def cs_news(ctx):
 
 
 @client.slash_command(name="setid")
-async def set_id(ctx, steam_id):
+async def set_id(ctx, steam_id: str):
+    author_id = str(ctx.author.id)
     cur = conn.cursor()
-    cur.execute("SELECT * FROM steam_data WHERE discord_id=%s", ctx.author.id)
+    cur.execute("SELECT * FROM steam_data WHERE discord_id=(%s)", (author_id,))
     res = cur.fetchall()
     # If a row doesn't exist for a user insert into the table
     if res is None:
-        cur.execute("INSERT INTO steam_data (discord_id, steam_id) VALUES (%s, %s, %s)", (ctx.author.id, steam_id))
+        cur.execute("INSERT INTO steam_data (discord_id, steam_id) VALUES (%s, %s, %s)", (author_id, steam_id))
     # If a row does exist for a user update the steam_id for the discord user
     else:
-        cur.execute("UPDATE steam_data SET steam_id=%s WHERE discord_id=%s", (steam_id, ctx.author.id))
+        cur.execute("UPDATE steam_data SET steam_id=%s WHERE discord_id=%s", (author_id, steam_id))
 
     # Commit changes
     conn.commit()
     # Close the cursor
     cur.close()
-    # logging.log(20, r.get(ctx.author.id))
     await ctx.respond(f"Steam Account {steam_id} successfully linked!")
 
 
 @client.slash_command(name="getid")
 async def get_id(ctx):
     cur = conn.cursor()
-    cur.execute("SELECT steam_id FROM steam_data WHERE discord_id=%s", ctx.author.id)
-    steam_id = cur.fetchone()[0]
+    cur.execute("SELECT steam_id FROM steam_data WHERE discord_id=(%s)", (str(ctx.author.id),))
+    user_id_response = cur.fetchone()
     cur.close()
-    if steam_id == "":
-        await ctx.respond(f"Please use /setid to set your Steam ID!")
-    await ctx.respond(f"Your steam ID is: {steam_id}")
+    if user_id_response is not None:
+        await ctx.respond(f"Your steam ID is: {user_id_response[0]}")
+    await ctx.respond(f"Please use /setid to set your Steam ID!")
 
 
 def get_player_ban(steam_id):

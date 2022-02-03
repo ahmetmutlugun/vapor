@@ -3,9 +3,10 @@ import discord
 import json
 from discord.ext import commands
 import re
-import redis
 import os
 import logging
+import psycopg2
+
 logging.log(20, "Running Script...")
 client = commands.Bot(description="Bringing Steam features as a Discord bot.")
 
@@ -16,8 +17,13 @@ file2 = open("keys/steam.key", "r")
 steam_key = file2.read()
 file2.close()
 
-r = redis.Redis(os.environ.get("REDIS_HOST", "localhost"), 6379, 0)
-r.set("ahmet", "patates")
+# Establish a session with the postgres database
+conn = psycopg2.connect(
+    host=os.environ["HOST"],
+    database=os.environ["POSTGRES_DB"],
+    user=os.environ["POSTGRES_USER"],
+    password=os.environ["POSTGRES_PASSWORD"]
+)
 
 
 @client.event
@@ -55,7 +61,6 @@ async def ban_status(ctx, steam_id):
 # TODO Include URL to the news website
 @client.slash_command(name="csnews", guilds_ids=guilds)
 async def cs_news(ctx):
-    await ctx.respond(r.get("ahmet"))
     data = get_app_data()
     embed = discord.Embed(title=f"CSGO News", type='rich',
                           color=0x0c0c28, url="https://blog.counter-strike.net/")
@@ -66,16 +71,32 @@ async def cs_news(ctx):
 
 @client.slash_command(name="setid")
 async def set_id(ctx, steam_id):
-    r.set(ctx.author.id, steam_id)
-    logging.log(20, r.get(ctx.author.id))
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM steam_data WHERE discord_id=%s", ctx.author.id)
+    res = cur.fetchall()
+    # If a row doesn't exist for a user insert into the table
+    if res is None:
+        cur.execute("INSERT INTO steam_data (discord_id, steam_id) VALUES (%s, %s, %s)", ctx.author.id, steam_id)
+    # If a row does exist for a user update the steam_id for the discord user
+    else:
+        cur.execute("UPDATE steam_data SET steam_id=%s WHERE discord_id=%s", steam_id, ctx.author.id)
+
+    # Commit changes
+    cur.commit()
+    # Close the cursor
+    cur.close()
+    # logging.log(20, r.get(ctx.author.id))
     await ctx.respond(f"Steam Account {steam_id} successfully linked!")
 
 
 @client.slash_command(name="getid")
 async def get_id(ctx):
-    user_id_response = r.get(ctx.author.id)
+    cur = conn.cursor()
+    cur.execute("SELECT steam_id FROM steam_data WHERE discord_id=%s", ctx.author.id)
+    user_id_response = cur.fetchall()
+    cur.close()
     if user_id_response is not None:
-        await ctx.respond(f"{user_id_response}")
+        await ctx.respond(f"Your steam ID is: {user_id_response[0][0]}")
     await ctx.respond(f"Please use /setid to set your Steam ID!")
 
 

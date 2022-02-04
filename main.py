@@ -113,6 +113,7 @@ def get_user_id(name: str):
 
 
 def exec_query(query_string: str, params: tuple):
+    res = []
     # Establish a session with the postgres database
     with psycopg2.connect(
             host=os.environ["HOST"],
@@ -124,9 +125,9 @@ def exec_query(query_string: str, params: tuple):
         with conn.cursor() as cur:
             # Execute query with parameters
             cur.execute(query_string, params)
-            # Return all the results
-            return cur.fetchall() 
-
+            res = cur.fetchall() 
+    # Return all the results
+    return res
 
 file = open("keys/discord.key", "r")
 token = file.read()

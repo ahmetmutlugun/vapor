@@ -125,7 +125,10 @@ def exec_query(query_string: str, params: tuple):
         with conn.cursor() as cur:
             # Execute query with parameters
             cur.execute(query_string, params)
-            res = cur.fetchall() 
+            try:
+                res = cur.fetchall()
+            except psycopg2.ProgrammingError:
+                res = []
     # Return all the results
     return res
 

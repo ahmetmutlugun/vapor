@@ -112,31 +112,20 @@ def get_user_id(name: str):
     return None
 
 
-def exec_query(query_string: str, params: tuple) -> list:
-    # Allocate list for results of a query
-    res = []
-    try:
-        # Establish a session with the postgres database
-        conn = psycopg2.connect(
+def exec_query(query_string: str, params: tuple):
+    # Establish a session with the postgres database
+    with psycopg2.connect(
             host=os.environ["HOST"],
             database=os.environ["POSTGRES_DB"],
             user=os.environ["POSTGRES_USER"],
             password=os.environ["POSTGRES_PASSWORD"]
-        )
-        # Create a cursor and execute a query
-        cur = conn.cursor()
-        cur.execute(query_string, params)
-        res = cur.fetchall()
-        # Commit any changes
-        conn.commit()
-    # Returns an error 
-    except psycopg2.Error as e:
-        raise e
-    finally:
-        conn.close()
-        cur.close()
-        return res
-    
+        ) as conn:
+        # Create a cursor
+        with conn.cursor() as cur:
+            # Execute query with parameters
+            cur.execute(query_string, params)
+            # Return all the results
+            return cur.fetchall() 
 
 
 file = open("keys/discord.key", "r")

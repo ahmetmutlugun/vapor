@@ -68,10 +68,10 @@ async def set_id(ctx, steam_id: str):
     res = exec_query("SELECT * FROM steam_data WHERE discord_id=(%s)", (author_id,))
     # If a row doesn't exist for a user insert into the table
     if not res:
-        exec_query("INSERT INTO steam_data (discord_id, steam_id) VALUES (%s, %s, %s)", (author_id, steam_id))
+        exec_query("INSERT INTO steam_data (discord_id, steam_id) VALUES (%s, %s)", (author_id, steam_id))
     # If a row does exist for a user update the steam_id for the discord user
     else:
-        exec_query("UPDATE steam_data SET steam_id=%s WHERE discord_id=%s", (author_id, steam_id))
+        exec_query("UPDATE steam_data SET steam_id=(%s) WHERE discord_id=(%s)", (steam_id, author_id))
 
     await ctx.respond(f"Steam Account {steam_id} successfully linked!")
 

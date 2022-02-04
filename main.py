@@ -7,7 +7,16 @@ import os
 import logging
 import psycopg2
 
-logging.log(20, "Running Script...")
+#TODO
+# Make docker-compose faster
+# Use steam id from the database when running /banstatus
+# Display more information in the ban status embed
+# Include URL to the news website for csnews when filtering out html tags
+# Respond with the linked profile to /getid and /setid
+# Add user profile command to display profile embeds
+# Find and implement API for inventory valuation
+
+logging.info("Running Script...")
 client = commands.Bot(description="Bringing Steam features as a Discord bot.")
 
 headers = {'Accept': 'application/json'}
@@ -18,15 +27,13 @@ steam_key = file2.read()
 file2.close()
 
 
-
 @client.event
 async def on_ready():
-    logging.log(20, f"Logged in as {client.user} (Discord ID: {client.user.id})")
+    logging.info(f"Logged in as {client.user} (Discord ID: {client.user.id})")
     for guild in client.guilds:
         guilds.append(guild)
 
 
-# TODO Display more information in the Embed
 @client.slash_command(name="banstatus")
 async def ban_status(ctx, steam_id):
     if steam_id is None:
@@ -51,7 +58,6 @@ async def ban_status(ctx, steam_id):
     await ctx.respond(embed=embed)
 
 
-# TODO Include URL to the news website
 @client.slash_command(name="csnews", guilds_ids=guilds)
 async def cs_news(ctx):
     data = get_app_data()
@@ -65,6 +71,10 @@ async def cs_news(ctx):
 @client.slash_command(name="setid")
 async def set_id(ctx, steam_id: str):
     author_id = str(ctx.author.id)
+    steam_id = get_valid_steam_id(steam_id)
+    if steam_id is None:
+        await ctx.respond("Please use a valid steam ID or custom url.")
+        return
     res = exec_query("SELECT * FROM steam_data WHERE discord_id=(%s)", (author_id,))
     # If a row doesn't exist for a user insert into the table
     if not res:
@@ -79,8 +89,9 @@ async def set_id(ctx, steam_id: str):
 @client.slash_command(name="getid")
 async def get_id(ctx):
     user_id_response = exec_query("SELECT steam_id FROM steam_data WHERE discord_id=(%s)", (str(ctx.author.id),))
-    if user_id_response: 
+    if user_id_response:
         await ctx.respond(f"Your steam ID is: {user_id_response[0][0]}")
+        return
     await ctx.respond(f"Please use /setid to set your Steam ID!")
 
 
@@ -120,7 +131,7 @@ def exec_query(query_string: str, params: tuple):
             database=os.environ["POSTGRES_DB"],
             user=os.environ["POSTGRES_USER"],
             password=os.environ["POSTGRES_PASSWORD"]
-        ) as conn:
+    ) as conn:
         # Create a cursor
         with conn.cursor() as cur:
             # Execute query with parameters
@@ -131,6 +142,16 @@ def exec_query(query_string: str, params: tuple):
                 res = []
     # Return all the results
     return res
+
+
+def get_valid_steam_id(steam_id):
+    if get_player_ban(steam_id) is not None:
+        return steam_id
+    steam_url = get_user_id(steam_id)
+    if steam_url is not None:
+        return steam_url
+    return None
+
 
 file = open("keys/discord.key", "r")
 token = file.read()

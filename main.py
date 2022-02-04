@@ -17,13 +17,6 @@ file2 = open("keys/steam.key", "r")
 steam_key = file2.read()
 file2.close()
 
-# Establish a session with the postgres database
-conn = psycopg2.connect(
-    host=os.environ["HOST"],
-    database=os.environ["POSTGRES_DB"],
-    user=os.environ["POSTGRES_USER"],
-    password=os.environ["POSTGRES_PASSWORD"]
-)
 
 
 @client.event
@@ -72,31 +65,22 @@ async def cs_news(ctx):
 @client.slash_command(name="setid")
 async def set_id(ctx, steam_id: str):
     author_id = str(ctx.author.id)
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM steam_data WHERE discord_id=(%s)", (author_id,))
-    res = cur.fetchall()
+    res = exec_query("SELECT * FROM steam_data WHERE discord_id=(%s)", (author_id,))
     # If a row doesn't exist for a user insert into the table
-    if res is None:
-        cur.execute("INSERT INTO steam_data (discord_id, steam_id) VALUES (%s, %s, %s)", (author_id, steam_id))
+    if not res:
+        exec_query("INSERT INTO steam_data (discord_id, steam_id) VALUES (%s, %s, %s)", (author_id, steam_id))
     # If a row does exist for a user update the steam_id for the discord user
     else:
-        cur.execute("UPDATE steam_data SET steam_id=%s WHERE discord_id=%s", (author_id, steam_id))
+        exec_query("UPDATE steam_data SET steam_id=%s WHERE discord_id=%s", (author_id, steam_id))
 
-    # Commit changes
-    conn.commit()
-    # Close the cursor
-    cur.close()
     await ctx.respond(f"Steam Account {steam_id} successfully linked!")
 
 
 @client.slash_command(name="getid")
 async def get_id(ctx):
-    cur = conn.cursor()
-    cur.execute("SELECT steam_id FROM steam_data WHERE discord_id=(%s)", (str(ctx.author.id),))
-    user_id_response = cur.fetchone()
-    cur.close()
-    if user_id_response is not None:
-        await ctx.respond(f"Your steam ID is: {user_id_response[0]}")
+    user_id_response = exec_query("SELECT steam_id FROM steam_data WHERE discord_id=(%s)", (str(ctx.author.id),))
+    if user_id_response: 
+        await ctx.respond(f"Your steam ID is: {user_id_response[0][0]}")
     await ctx.respond(f"Please use /setid to set your Steam ID!")
 
 
@@ -126,6 +110,33 @@ def get_user_id(name: str):
     if r.json()['response']['success'] == 1:
         return r.json()['response']['steamid']
     return None
+
+
+def exec_query(query_string: str, params: tuple) -> list:
+    # Allocate list for results of a query
+    res = []
+    try:
+        # Establish a session with the postgres database
+        conn = psycopg2.connect(
+            host=os.environ["HOST"],
+            database=os.environ["POSTGRES_DB"],
+            user=os.environ["POSTGRES_USER"],
+            password=os.environ["POSTGRES_PASSWORD"]
+        )
+        # Create a cursor and execute a query
+        cur = conn.cursor()
+        cur.execute(query_string, params)
+        res = cur.fetchall()
+        # Commit any changes
+        conn.commit()
+    # Returns an error 
+    except psycopg2.Error as e:
+        raise e
+    finally:
+        conn.close()
+        cur.close()
+        return res
+    
 
 
 file = open("keys/discord.key", "r")

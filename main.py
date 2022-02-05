@@ -3,11 +3,14 @@ import asyncio
 import requests
 import discord
 import json
+
+from discord import Option
 from discord.ext import commands
 import re
 import os
 import logging
 import psycopg2
+from inventory import Inventory
 
 # TODO
 # Make docker-compose faster
@@ -97,39 +100,6 @@ async def get_id(ctx):
     await ctx.respond(f"Please use /setid to set your Steam ID!")
 
 
-@client.slash_command(name="inventory")
-async def get_inventory(ctx, steam_id=None):
-    if steam_id is None:
-        user_id_response = exec_query("SELECT steam_id FROM steam_data WHERE discord_id=(%s)", (str(ctx.author.id),))
-        if user_id_response:
-            steam_id = user_id_response[0][0]
-    await ctx.respond(f"Calculating inventory value for {steam_id}. This might take a few minutes.", )
-    r = requests.get(f"https://steamcommunity.com/inventory/{steam_id}/730/2?l=english&count=5000",
-                     headers=headers)
-    assets = r.json()
-
-    value = await calc_inventory_value(assets)
-    await ctx.respond(f"Inventory value of {steam_id} is ${value}")
-
-
-async def calc_inventory_value(assets):
-
-    id_dictionary = {}
-    for i in assets['assets']:
-        if i['classid'] in id_dictionary:
-            id_dictionary.update({i['classid']: id_dictionary[i['classid']] + 1})
-        else:
-            id_dictionary.update({i['classid']: 1})
-    asset_list = []
-    for i in assets['descriptions']:
-        for _ in range(0, id_dictionary[i['classid']]):
-            asset_list.append(i['market_hash_name'])
-
-    total: float = 0
-    for i in asset_list:
-        total += item_value(i)
-    return round(total, 2)
-
 
 def get_player_ban(steam_id):
     r = requests.get(
@@ -189,19 +159,8 @@ def get_valid_steam_id(steam_id):
     return None
 
 
-def item_value(item: str):
-    r = requests.get(
-        f'http://csgobackpack.net/api/GetItemPrice/?currency=USD&id={item}&time=7&icon=1',
-        headers=headers, params={'id': item.replace(' ', '%20')})
-
-    try:
-        price = float(r.json()['median_price'])
-    except KeyError:
-        return 0
-    return price
-
-
 file = open("keys/discord.key", "r")
 token = file.read()
 file.close()
+client.add_cog(Inventory(client))
 client.run(token)

@@ -1,3 +1,5 @@
+import asyncio
+
 import requests
 import discord
 import json
@@ -7,17 +9,17 @@ import os
 import logging
 import psycopg2
 
-#TODO
+# TODO
 # Make docker-compose faster
 # Use steam id from the database when running /banstatus
 # Display more information in the ban status embed
 # Include URL to the news website for csnews when filtering out html tags
 # Respond with the linked profile to /getid and /setid
 # Add user profile command to display profile embeds
-# Find and implement API for inventory valuation
+# Optimize inventory
 
 logging.info("Running Script...")
-client = commands.Bot(description="Bringing Steam features as a Discord bot.")
+client = commands.AutoShardedBot(description="Bringing Steam features as a Discord bot.")
 
 headers = {'Accept': 'application/json'}
 guilds = []
@@ -95,6 +97,40 @@ async def get_id(ctx):
     await ctx.respond(f"Please use /setid to set your Steam ID!")
 
 
+@client.slash_command(name="inventory")
+async def get_inventory(ctx, steam_id=None):
+    if steam_id is None:
+        user_id_response = exec_query("SELECT steam_id FROM steam_data WHERE discord_id=(%s)", (str(ctx.author.id),))
+        if user_id_response:
+            steam_id = user_id_response[0][0]
+    await ctx.respond(f"Calculating inventory value for {steam_id}. This might take a few minutes.", )
+    r = requests.get(f"https://steamcommunity.com/inventory/{steam_id}/730/2?l=english&count=5000",
+                     headers=headers)
+    assets = r.json()
+
+    value = await calc_inventory_value(assets)
+    await ctx.respond(f"Inventory value of {steam_id} is ${value}")
+
+
+async def calc_inventory_value(assets):
+
+    id_dictionary = {}
+    for i in assets['assets']:
+        if i['classid'] in id_dictionary:
+            id_dictionary.update({i['classid']: id_dictionary[i['classid']] + 1})
+        else:
+            id_dictionary.update({i['classid']: 1})
+    asset_list = []
+    for i in assets['descriptions']:
+        for _ in range(0, id_dictionary[i['classid']]):
+            asset_list.append(i['market_hash_name'])
+
+    total: float = 0
+    for i in asset_list:
+        total += item_value(i)
+    return round(total, 2)
+
+
 def get_player_ban(steam_id):
     r = requests.get(
         f' http://api.steampowered.com/ISteamUser/GetPlayerBans/v1',
@@ -151,6 +187,18 @@ def get_valid_steam_id(steam_id):
     if steam_url is not None:
         return steam_url
     return None
+
+
+def item_value(item: str):
+    r = requests.get(
+        f'http://csgobackpack.net/api/GetItemPrice/?currency=USD&id={item}&time=7&icon=1',
+        headers=headers, params={'id': item.replace(' ', '%20')})
+
+    try:
+        price = float(r.json()['median_price'])
+    except KeyError:
+        return 0
+    return price
 
 
 file = open("keys/discord.key", "r")

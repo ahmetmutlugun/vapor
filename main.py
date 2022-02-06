@@ -70,7 +70,7 @@ async def cs_news(ctx):
     pages = 5
     cur_page = 1
     message = await ctx.send(contents[cur_page - 1])
-    # getting the message object for editing and reacting
+    # Getting the message object for editing and reacting
 
     await message.add_reaction("◀️")
     await message.add_reaction("▶️")

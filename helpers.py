@@ -10,7 +10,7 @@ steam_key_file = open("keys/steam.key", "r")
 steam_key = steam_key_file.read()
 steam_key_file.close()
 
-all_item_prices = {}
+all_item_prices = {}  # Cache item prices
 
 
 def set_all_item_prices():

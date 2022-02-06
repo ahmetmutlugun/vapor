@@ -1,15 +1,9 @@
-import asyncio
-
-import requests
-import discord
-import json
-
-from discord import Option
-from discord.ext import commands
-import re
-import os
 import logging
-import psycopg2
+import re
+import discord
+from discord.ext import commands
+
+from helpers import *
 from inventory import Inventory
 
 # TODO
@@ -24,12 +18,7 @@ from inventory import Inventory
 logging.info("Running Script...")
 client = commands.AutoShardedBot(description="Bringing Steam features as a Discord bot.")
 
-headers = {'Accept': 'application/json'}
 guilds = []
-
-file2 = open("keys/steam.key", "r")
-steam_key = file2.read()
-file2.close()
 
 
 @client.event
@@ -98,65 +87,6 @@ async def get_id(ctx):
         await ctx.respond(f"Your steam ID is: {user_id_response[0][0]}")
         return
     await ctx.respond(f"Please use /setid to set your Steam ID!")
-
-
-
-def get_player_ban(steam_id):
-    r = requests.get(
-        f' http://api.steampowered.com/ISteamUser/GetPlayerBans/v1',
-        params={"key": steam_key, "steamids": f"{steam_id}"},
-        headers=headers)
-    data = json.loads(r.content.decode('utf-8'))
-    if len(data['players']) < 1:
-        return None
-    return data["players"][0]
-
-
-def get_app_data():
-    r = requests.get(
-        f' http://api.steampowered.com/ISteamNews/GetNewsForApp/v0002/?appid=730&count=1&maxlength=30000&format=json',
-        headers=headers)
-    data = r.json()
-    return data['appnews']['newsitems'][0]
-
-
-def get_user_id(name: str):
-    r = requests.get(
-        f'http://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key={steam_key}&vanityurl={name}',
-        headers=headers)
-    if r.json()['response']['success'] == 1:
-        return r.json()['response']['steamid']
-    return None
-
-
-def exec_query(query_string: str, params: tuple):
-    res = []
-    # Establish a session with the postgres database
-    with psycopg2.connect(
-            host=os.environ["HOST"],
-            database=os.environ["POSTGRES_DB"],
-            user=os.environ["POSTGRES_USER"],
-            password=os.environ["POSTGRES_PASSWORD"]
-    ) as conn:
-        # Create a cursor
-        with conn.cursor() as cur:
-            # Execute query with parameters
-            cur.execute(query_string, params)
-            try:
-                res = cur.fetchall()
-            except psycopg2.ProgrammingError:
-                res = []
-    # Return all the results
-    return res
-
-
-def get_valid_steam_id(steam_id):
-    if get_player_ban(steam_id) is not None:
-        return steam_id
-    steam_url = get_user_id(steam_id)
-    if steam_url is not None:
-        return steam_url
-    return None
 
 
 file = open("keys/discord.key", "r")

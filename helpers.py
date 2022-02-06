@@ -62,12 +62,12 @@ def get_player_ban(steam_id):  # Get ban infromation from Steam ID
     return data["players"][0]
 
 
-def get_news():
+def get_news(count: int = 1, appid: int = 730):
     r = requests.get(
-        f' http://api.steampowered.com/ISteamNews/GetNewsForApp/v0002/?appid=730&count=1&maxlength=30000&format=json',
+        f' http://api.steampowered.com/ISteamNews/GetNewsForApp/v0002/?appid={appid}&count={count}&maxlength=30000&format=json',
         headers=headers)
     data = r.json()
-    return data['appnews']['newsitems'][0]
+    return data['appnews']['newsitems']
 
 
 async def calc_inventory_value(assets):

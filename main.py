@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import re
 import discord
@@ -13,7 +14,6 @@ from inventory import Inventory
 # Include URL to the news website for csnews when filtering out html tags
 # Respond with the linked profile to /getid and /setid
 # Add user profile command to display profile embeds
-# Optimize inventory
 
 logging.info("Running Script...")
 client = commands.AutoShardedBot(description="Bringing Steam features as a Discord bot.")
@@ -52,20 +52,24 @@ async def ban_status(ctx, steam_id):
     await ctx.respond(embed=embed)
 
 
+@client.slash_command(name='ping')
+async def ping(ctx):
+    await ctx.respond(f"My ping is: {round(client.latency * 1000)}ms")
+
+
 @client.slash_command(name="csnews", guilds_ids=guilds)
 async def cs_news(ctx):
-
     # To get csgo news use app id 730
     articles = get_news(count=5, appid=730)
     contents = []
     html_tags = re.compile(r'<[^>]+>')
     for art in articles:
         # Create the embed for each page; 1 per article
-        embed = discord.Embed(title=f"CSGO News", type='rich', color=0x0c0c28, url=art['url'].replaceAll(" ", ""))
+        embed = discord.Embed(title=f"CSGO News", type='rich', color=0x0c0c28, url=art['url'].replace(" ", ""))
         embed.add_field(name=art['title'], value=html_tags.sub('', art['contents']))
     pages = 5
     cur_page = 1
-    message = await ctx.send(contents[cur_page-1])
+    message = await ctx.send(contents[cur_page - 1])
     # getting the message object for editing and reacting
 
     await message.add_reaction("◀️")
@@ -83,12 +87,12 @@ async def cs_news(ctx):
 
             if str(reaction.emoji) == "▶️" and cur_page != pages:
                 cur_page += 1
-                await message.edit(content=contents[cur_page-1])
+                await message.edit(content=contents[cur_page - 1])
                 await message.remove_reaction(reaction, user)
 
             elif str(reaction.emoji) == "◀️" and cur_page > 1:
                 cur_page -= 1
-                await message.edit(content=f"Page {cur_page}/{pages}:\n{contents[cur_page-1]}")
+                await message.edit(content=f"Page {cur_page}/{pages}:\n{contents[cur_page - 1]}")
                 await message.remove_reaction(reaction, user)
 
             else:

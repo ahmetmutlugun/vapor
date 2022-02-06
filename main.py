@@ -2,7 +2,6 @@ import logging
 import re
 import discord
 from discord.ext import commands
-
 from helpers import *
 from inventory import Inventory
 

@@ -1,3 +1,4 @@
+import logging
 import psycopg2
 import requests
 import json
@@ -8,20 +9,10 @@ steam_key_file = open("keys/steam.key", "r")
 steam_key = steam_key_file.read()
 steam_key_file.close()
 
-
-def item_value(item: str):
-    r = requests.get(
-        f'http://csgobackpack.net/api/GetItemPrice/?currency=USD&id={item}&time=7&icon=1',
-        headers=headers, params={'id': item.replace(' ', '%20')})
-
-    try:
-        price = float(r.json()['median_price'])
-    except KeyError:
-        return 0
-    return price
+all_item_prices = {}
 
 
-def get_valid_steam_id(steam_id):
+def get_valid_steam_id(steam_id):  # Check Steam ID validity or get Steam ID from custom url
     if get_player_ban(steam_id) is not None:
         return steam_id
     steam_url = get_user_id(steam_id)
@@ -30,7 +21,7 @@ def get_valid_steam_id(steam_id):
     return None
 
 
-def get_user_id(name: str):
+def get_user_id(name: str):  # Get Steam ID from custom url
     r = requests.get(
         f'http://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key={steam_key}&vanityurl={name}',
         headers=headers)
@@ -39,7 +30,7 @@ def get_user_id(name: str):
     return None
 
 
-def get_player_ban(steam_id):
+def get_player_ban(steam_id):  # Get ban infromation from Steam ID
     r = requests.get(
         f' http://api.steampowered.com/ISteamUser/GetPlayerBans/v1',
         params={"key": steam_key, "steamids": f"{steam_id}"},
@@ -50,7 +41,7 @@ def get_player_ban(steam_id):
     return data["players"][0]
 
 
-def get_app_data():
+def get_news():
     r = requests.get(
         f' http://api.steampowered.com/ISteamNews/GetNewsForApp/v0002/?appid=730&count=1&maxlength=30000&format=json',
         headers=headers)
@@ -69,14 +60,24 @@ async def calc_inventory_value(assets):
     for i in assets['descriptions']:
         for _ in range(0, id_dictionary[i['classid']]):
             asset_list.append(i['market_hash_name'])
-
+    item_values = get_all_item_values()
     total: float = 0
     for i in asset_list:
-        total += item_value(i)
+        try:
+            total += item_values[i]['price']['24_hours']['median']
+        except KeyError:
+            pass
     return round(total, 2)
 
 
-def exec_query(self, query_string: str, params: tuple):
+def get_all_item_values():
+    r = requests.get(
+        f'http://csgobackpack.net/api/GetItemsList/v2/',
+        headers=headers)
+    return r.json()['items_list']
+
+
+def exec_query(query_string: str, params: tuple):
     res = []
     # Establish a session with the postgres database
     with psycopg2.connect(

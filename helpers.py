@@ -3,6 +3,7 @@ import psycopg2
 import requests
 import json
 import os
+
 logging.basicConfig(level=logging.INFO)
 headers = {'Accept': 'application/json'}
 steam_key_file = open("keys/steam.key", "r")
@@ -10,6 +11,27 @@ steam_key = steam_key_file.read()
 steam_key_file.close()
 
 all_item_prices = {}
+
+
+def set_all_item_prices():
+    items = get_all_item_values()
+
+    for i in items:
+        if 'price' not in items[i]:
+            print(items[i])
+        try:
+            all_item_prices.update({i: items[i]['price']['24_hours']['median']})
+        except KeyError:
+            try:
+                all_item_prices.update({i: items[i]['price']['7_days']['median']})
+            except KeyError:
+                try:
+                    all_item_prices.update({i: items[i]['price']['30_days']['median']})
+                except KeyError:
+                    try:
+                        all_item_prices.update({i: items[i]['price']['all_time']['median']})
+                    except KeyError:
+                        all_item_prices.update({i: 0})
 
 
 def get_valid_steam_id(steam_id):  # Check Steam ID validity or get Steam ID from custom url
@@ -61,11 +83,10 @@ async def calc_inventory_value(assets):
     for i in assets['descriptions']:
         for _ in range(0, id_dictionary[i['classid']]):
             asset_list.append(i['market_hash_name'])
-    item_values = get_all_item_values()
     total: float = 0
     for i in asset_list:
         try:
-            total += item_values[i]['price']['24_hours']['median']
+            total += all_item_prices[i]
         except KeyError:
             pass
     return round(total, 2)
@@ -97,3 +118,5 @@ def exec_query(query_string: str, params: tuple):
                 res = []
     # Return all the results
     return res
+
+set_all_item_prices()

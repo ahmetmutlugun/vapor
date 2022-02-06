@@ -6,13 +6,7 @@ import discord
 from helpers import *
 
 autocomplete_item_list = []
-
-
-def get_all_item_values():
-    r = requests.get(
-        f'http://csgobackpack.net/api/GetItemsList/v2/',
-        headers=headers, params={"no_details": 1, 'currency': "USD"})
-    return r.json()['items_list']
+all_item_prices = {}
 
 
 def set_autocomplete_items():
@@ -46,7 +40,6 @@ class Inventory(commands.Cog):
             if steam_id is None:
                 await ctx.respond(f"Please enter a Steam ID or set a steam ID with /setid")
                 return
-        await ctx.respond(f"Calculating inventory value for {steam_id}. This might take a few seconds.")
         r = requests.get(f"https://steamcommunity.com/inventory/{steam_id}/730/2?l=english&count=5000",
                          headers=headers)
         assets = r.json()

@@ -17,8 +17,6 @@ def set_all_item_prices():
     items = get_all_item_values()
 
     for i in items:
-        if 'price' not in items[i]:
-            print(items[i])
         try:
             all_item_prices.update({i: items[i]['price']['24_hours']['median']})
         except KeyError:

@@ -53,7 +53,7 @@ async def ban_status(ctx, steam_id):
 
 @client.slash_command(name="csnews", guilds_ids=guilds)
 async def cs_news(ctx):
-    data = get_app_data()
+    data = get_news()
     embed = discord.Embed(title=f"CSGO News", type='rich',
                           color=0x0c0c28, url="https://blog.counter-strike.net/")
     html_tags = re.compile(r'<[^>]+>')

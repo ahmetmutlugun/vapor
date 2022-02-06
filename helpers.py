@@ -3,7 +3,7 @@ import psycopg2
 import requests
 import json
 import os
-
+logging.basicConfig(level=logging.INFO)
 headers = {'Accept': 'application/json'}
 steam_key_file = open("keys/steam.key", "r")
 steam_key = steam_key_file.read()
@@ -25,9 +25,10 @@ def get_user_id(name: str):  # Get Steam ID from custom url
     r = requests.get(
         f'http://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key={steam_key}&vanityurl={name}',
         headers=headers)
-    if r.json()['response']['success'] == 1:
+    try:
         return r.json()['response']['steamid']
-    return None
+    except KeyError:
+        return None
 
 
 def get_player_ban(steam_id):  # Get ban infromation from Steam ID

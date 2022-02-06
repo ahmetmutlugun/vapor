@@ -11,7 +11,6 @@ from inventory import Inventory
 # Make docker-compose faster
 # Use steam id from the database when running /banstatus
 # Display more information in the ban status embed
-# Include URL to the news website for csnews when filtering out html tags
 # Respond with the linked profile to /getid and /setid
 # Add user profile command to display profile embeds
 
@@ -67,6 +66,7 @@ async def cs_news(ctx):
         # Create the embed for each page; 1 per article
         embed = discord.Embed(title=f"CSGO News", type='rich', color=0x0c0c28, url=art['url'].replace(" ", ""))
         embed.add_field(name=art['title'], value=html_tags.sub('', art['contents']))
+        contents.append(embed)
     pages = 5
     cur_page = 1
     message = await ctx.send(contents[cur_page - 1])

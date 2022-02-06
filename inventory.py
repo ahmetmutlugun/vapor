@@ -58,13 +58,14 @@ class Inventory(commands.Cog):
                 f'http://csgobackpack.net/api/GetItemPrice/?currency=USD&id={str(item).replace(" ", "%20")}&time=7&icon=1',
                 headers=headers)
             try:
+                # Create an embed with the items stats
                 embed = discord.Embed(title=f"{item}", type='rich',
                                       color=0x0c0c28, url=f"https://steamcommunity.com/market/listings/730/{str(item).replace(' ', '%20')}")
                 embed.add_field(name=f"Average Price:", value=f"${round(float(r.json()['average_price']), 2)}")
                 embed.add_field(name=f"Median Price:", value=f"${round(float(r.json()['median_price']), 2)}")
                 embed.add_field(name=f"Amount on sale:", value=r.json()['amount_sold'])
                 embed.set_thumbnail(url=r.json()['icon'])
-                await ctx.respond(embed = embed)
+                await ctx.respond(embed=embed)
             except KeyError:
                 await ctx.respond(f"Could not find a price for {item}!")
             return

@@ -3,7 +3,7 @@ import logging
 import re
 import discord
 from discord.ext import commands
-
+import datetime
 from helpers import *
 from inventory import Inventory
 
@@ -11,6 +11,7 @@ from inventory import Inventory
 # Respond with the linked profile to /getid and /setid
 # Add user profile command to display profile embeds
 
+logging.basicConfig(level=logging.INFO)
 logging.info("Running Script...")
 client = commands.AutoShardedBot(description="Bringing Steam features as a Discord bot.")
 
@@ -26,7 +27,7 @@ async def on_ready():
 
 @client.slash_command(name="banstatus")
 async def ban_status(ctx, steam_id=""):
-    if steam_id is "":
+    if steam_id == "":
         steam_id = query_steam_id(ctx.author.id)
         if steam_id is None:
             await ctx.respond("Please provide a Steam ID or use /setid.")
@@ -134,6 +135,27 @@ async def get_id(ctx):
         await ctx.respond(f"Please use /setid to set your Steam ID!")
         return
     await ctx.respond(f"Your steam ID is: {steam_id}")
+
+
+@client.slash_command(name="profile")
+async def profile(ctx, steam_id=""):
+    if steam_id == "":
+        steam_id = query_steam_id(ctx.author.id)
+        if steam_id is None:
+            await ctx.respond("Please provide a Steam ID or use /setid.")
+            return
+
+    data = get_player_profile(steam_id)
+
+    if data is None:
+        await ctx.respond("Could not find a player with that name or ID!")
+        return
+    embed = discord.Embed(title=f"Ban profile of {data['personaname']}", type='rich',
+                          color=0x0c0c28, url=data['profileurl'])
+    embed.set_author(name=data['personaname'], url=data['avatar'])
+    embed.add_field(name=f"Real name", value=data['realname'])
+    embed.add_field(name=f"Last Online", value=datetime.datetime.fromtimestamp(data['lastlogoff']))
+    await ctx.respond(embed=embed)
 
 
 file = open("keys/discord.key", "r")

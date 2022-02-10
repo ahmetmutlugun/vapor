@@ -1,14 +1,14 @@
 import asyncio
+import json
 import logging
 import re
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 from helpers import *
 from inventory import Inventory
 
 # TODO
-# Make docker-compose faster
 # Use steam id from the database when running /banstatus
 # Display more information in the ban status embed
 # Respond with the linked profile to /getid and /setid
@@ -16,7 +16,7 @@ from inventory import Inventory
 
 logging.info("Running Script...")
 client = commands.AutoShardedBot(description="Bringing Steam features as a Discord bot.")
-
+NEWS_CHANNEL = 853516997747933225/853517404218982420
 guilds = []
 
 
@@ -58,8 +58,9 @@ async def ping(ctx):
 
 @client.slash_command(name="csnews", guilds_ids=guilds)
 async def cs_news(ctx):
-    # To get csgo news use app id 730
-    articles = get_news(count=5, appid=730)
+    # Get the news from the news.json file which is updated every hour
+    with open('news.json', 'r') as f:
+         articles = json.load(f)
     contents = []
     html_tags = re.compile(r'<[^>]+>')
     for art in articles:
@@ -130,6 +131,37 @@ async def get_id(ctx):
         await ctx.respond(f"Your steam ID is: {user_id_response[0][0]}")
         return
     await ctx.respond(f"Please use /setid to set your Steam ID!")
+
+@has_permissions(kick_member=True)
+@client.slash_command(name="setchannel")
+async def set_channel(ctx, channelid):
+    global NEWS_CHANNEL
+    NEWS_CHANNEL = channelid
+
+@tasks.loop(minutes=60)
+async def refresh_news():
+
+    # Read existing articles from news.json
+    with open('news.json', 'r') as json_file:
+        try:
+            old_news = json.dumps(json.load(json_file), sort_keys=True)
+        except Exception:
+            old_news = ""
+
+
+    # Send request to news API
+    updated_news = json.dumps(get_news(), sort_keys=True)
+
+    # If the old news isn't the same as the new news update the news.json file
+    chan = client.get_channel(NEWS_CHANNEL).r
+    if old_news != updated_news:
+        with open('news.json', 'w') as outfile:
+            outfile.write(updated_news)
+
+        # TODO - Call csnews method from here on the NEWS_CHANNEL context
+        await client.get_channel(NEWS_CHANNEL)
+
+
 
 
 file = open("keys/discord.key", "r")

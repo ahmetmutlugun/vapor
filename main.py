@@ -8,10 +8,6 @@ from helpers import *
 from inventory import Inventory
 
 # TODO
-# Make docker-compose faster
-# Use steam id from the database when running /banstatus
-# Display more information in the ban status embed
-# Include URL to the news website for csnews when filtering out html tags
 # Respond with the linked profile to /getid and /setid
 # Add user profile command to display profile embeds
 
@@ -29,10 +25,13 @@ async def on_ready():
 
 
 @client.slash_command(name="banstatus")
-async def ban_status(ctx, steam_id):
-    if steam_id is None:
-        await ctx.respond("Please provide a Steam ID or custom URL!")
-        return
+async def ban_status(ctx, steam_id=""):
+    if steam_id is "":
+        steam_id = query_steam_id(ctx.author.id)
+        if steam_id is None:
+            await ctx.respond("Please provide a Steam ID or use /setid.")
+            return
+
     possible_id = get_user_id(steam_id)
     if possible_id is not None:
         data = get_player_ban(possible_id)
@@ -44,10 +43,14 @@ async def ban_status(ctx, steam_id):
     if data is None:
         await ctx.respond("Could not find a player with that name or ID!")
         return
-    embed = discord.Embed(title=f"Profile of {steam_id}", type='rich',
+    embed = discord.Embed(title=f"Ban profile of {steam_id}", type='rich',
                           color=0x0c0c28, url=url)
-    embed.add_field(name=f"VAC Banned?", value=data['VACBanned'])
+    embed.add_field(name=f"VAC Ban", value=data['VACBanned'])
+    embed.add_field(name=f"Number of VAC bans", value=data['NumberOfVACBans'])
     embed.add_field(name=f"Days Since Last Ban", value=data['DaysSinceLastBan'])
+    embed.add_field(name=f"Number of game bans", value=data['NumberOfGameBans'])
+    embed.add_field(name=f"Community ban", value=data['CommunityBanned'])
+    embed.add_field(name=f"Economy ban", value=data['EconomyBan'])
 
     await ctx.respond(embed=embed)
 
@@ -67,16 +70,17 @@ async def cs_news(ctx):
         # Create the embed for each page; 1 per article
         embed = discord.Embed(title=f"CSGO News", type='rich', color=0x0c0c28, url=art['url'].replace(" ", ""))
         embed.add_field(name=art['title'], value=html_tags.sub('', art['contents']))
+        contents.append(embed)
     pages = 5
     cur_page = 1
-    message = await ctx.send(contents[cur_page - 1])
+    message = await ctx.send(embed=contents[cur_page - 1])
     # Getting the message object for editing and reacting
 
     await message.add_reaction("◀️")
     await message.add_reaction("▶️")
 
-    def check(reaction, user):
-        return user == ctx.author and str(reaction.emoji) in ["◀️", "▶️"]
+    def check(reaction_emoji, user_name):
+        return user_name == ctx.author and str(reaction_emoji.emoji) in ["◀️", "▶️"]
         # This makes sure nobody except the command sender can interact with the "menu"
 
     while True:
@@ -87,12 +91,12 @@ async def cs_news(ctx):
 
             if str(reaction.emoji) == "▶️" and cur_page != pages:
                 cur_page += 1
-                await message.edit(content=contents[cur_page - 1])
+                await message.edit(embed=contents[cur_page - 1])
                 await message.remove_reaction(reaction, user)
 
             elif str(reaction.emoji) == "◀️" and cur_page > 1:
                 cur_page -= 1
-                await message.edit(content=f"Page {cur_page}/{pages}:\n{contents[cur_page - 1]}")
+                await message.edit(embed=contents[cur_page - 1])
                 await message.remove_reaction(reaction, user)
 
             else:
@@ -125,11 +129,11 @@ async def set_id(ctx, steam_id: str):
 
 @client.slash_command(name="getid")
 async def get_id(ctx):
-    user_id_response = exec_query("SELECT steam_id FROM steam_data WHERE discord_id=(%s)", (str(ctx.author.id),))
-    if user_id_response:
-        await ctx.respond(f"Your steam ID is: {user_id_response[0][0]}")
+    steam_id = query_steam_id(ctx.author.id)
+    if steam_id is None:
+        await ctx.respond(f"Please use /setid to set your Steam ID!")
         return
-    await ctx.respond(f"Please use /setid to set your Steam ID!")
+    await ctx.respond(f"Your steam ID is: {steam_id}")
 
 
 file = open("keys/discord.key", "r")

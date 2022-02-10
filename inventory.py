@@ -17,8 +17,16 @@ def set_autocomplete_items():
 
 
 async def get_items(ctx: discord.AutocompleteContext):
-    """Returns a list of items that contain the user input."""
-    return [item for item in autocomplete_item_list if (ctx.value.capitalize()) in item]
+    matching_items = []
+    for item in autocomplete_item_list:
+        item_list = ctx.value.lower().split(" ")
+        failed = False
+        for _ in item_list:
+            if _ not in item.lower():
+                failed = True
+        if not failed:
+            matching_items.append(item)
+    return matching_items
 
 
 class Inventory(commands.Cog):
@@ -59,12 +67,13 @@ class Inventory(commands.Cog):
                 headers=headers)
             try:
                 embed = discord.Embed(title=f"{item}", type='rich',
-                                      color=0x0c0c28, url=f"https://steamcommunity.com/market/listings/730/{str(item).replace(' ', '%20')}")
+                                      color=0x0c0c28,
+                                      url=f"https://steamcommunity.com/market/listings/730/{str(item).replace(' ', '%20')}")
                 embed.add_field(name=f"Average Price:", value=f"${round(float(r.json()['average_price']), 2)}")
                 embed.add_field(name=f"Median Price:", value=f"${round(float(r.json()['median_price']), 2)}")
                 embed.add_field(name=f"Amount on sale:", value=r.json()['amount_sold'])
                 embed.set_thumbnail(url=r.json()['icon'])
-                await ctx.respond(embed = embed)
+                await ctx.respond(embed=embed)
             except KeyError:
                 await ctx.respond(f"Could not find a price for {item}!")
             return

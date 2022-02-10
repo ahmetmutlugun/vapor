@@ -84,6 +84,8 @@ async def calc_inventory_value(assets):
     total: float = 0
     for i in asset_list:
         try:
+            logging.info(i)
+            logging.info(all_item_prices[i])
             total += all_item_prices[i]
         except KeyError:
             pass
@@ -116,5 +118,13 @@ def exec_query(query_string: str, params: tuple):
                 res = []
     # Return all the results
     return res
+
+
+def query_steam_id(author_id):
+    user_id_response = exec_query("SELECT steam_id FROM steam_data WHERE discord_id=(%s)", (str(author_id),))
+    if user_id_response:
+        return user_id_response[0][0]
+    return
+
 
 set_all_item_prices()

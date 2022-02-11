@@ -158,10 +158,25 @@ async def refresh_news():
         with open('news.json', 'w') as outfile:
             outfile.write(updated_news)
 
-        # TODO - Call csnews method from here on the NEWS_CHANNEL context
-        await client.get_channel(NEWS_CHANNEL)
+        channel = client.get_channel(NEWS_CHANNEL)
+        await channel.send(front_page_embed())
 
 
+def front_page_embed():
+    """
+    Creates an embed of the front page of the news
+    :return: the Discord Embed
+    """
+    with open('news.json', 'r') as f:
+        articles = json.load(f)
+
+    front_page = articles[0]
+    contents = []
+    html_tags = re.compile(r'<[^>]+>')
+    embed = discord.Embed(title=f"CSGO News", type='rich', color=0x0c0c28, url=front_page['url'].replace(" ", ""))
+    embed.add_field(name=front_page['title'], value=html_tags.sub('', art['contents']))
+
+    return embed
 
 
 file = open("keys/discord.key", "r")

@@ -16,7 +16,7 @@ from inventory import Inventory
 
 logging.info("Running Script...")
 client = commands.AutoShardedBot(description="Bringing Steam features as a Discord bot.")
-NEWS_CHANNEL = 853516997747933225/853517404218982420
+NEWS_CHANNEL = 853516997747933225853517404218982420
 guilds = []
 
 
@@ -132,11 +132,25 @@ async def get_id(ctx):
         return
     await ctx.respond(f"Please use /setid to set your Steam ID!")
 
+
 @has_permissions(kick_member=True)
 @client.slash_command(name="setchannel")
 async def set_channel(ctx, channelid):
     global NEWS_CHANNEL
     NEWS_CHANNEL = channelid
+
+
+@client.slash_command(name="news")
+async def game_news(ctx, game_code):
+
+    # If the person needs help return an embed of all the supported codes = CSGO
+    if isinstance(game_code, str) and game_code == "help":
+        help = discord.Embed(title="Supported game news", color=0x0000FF)
+        help.add_field(name="CSGO", value=f"Game code: {730}", inline=True).set_image("https://static-cdn.jtvnw.net/ttv-boxart/32399-285x380.jpg")
+        # TODO: add other games
+
+
+
 
 @tasks.loop(minutes=60)
 async def refresh_news():

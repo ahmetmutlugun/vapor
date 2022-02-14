@@ -31,6 +31,17 @@ def set_all_item_prices():
                         all_item_prices.update({i: 0})
 
 
+def get_player_friends(steam_id):
+    r = requests.get(
+        f'http://api.steampowered.com/ISteamUser/GetFriendList/v0001/',
+        headers=headers, params={'steamid': [steam_id], "key": steam_key, 'relationship': "friend"})
+    friends = {}
+    for i in r.json()['friendslist']['friends']:
+        friends.update({i['steamid']: i['friend_since']})
+    friends = dict(sorted(friends.items(), key=lambda x: x[1]))
+    return friends
+
+
 def get_player_profile(steam_id):
     r = requests.get(
         f'http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/',

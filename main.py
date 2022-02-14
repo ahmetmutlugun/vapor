@@ -4,7 +4,7 @@ import re
 import discord
 from discord.ext import commands
 import datetime
-from helpers import *
+from helpers import get_news, get_valid_steam_id, get_player_ban, exec_query, get_player_friends, get_player_profile, query_steam_id, get_user_id
 from inventory import Inventory
 
 # TODO
@@ -25,37 +25,6 @@ async def on_ready():
         guilds.append(guild)
 
 
-@client.slash_command(name="banstatus")
-async def ban_status(ctx, steam_id=""):
-    if steam_id == "":
-        steam_id = query_steam_id(ctx.author.id)
-        if steam_id is None:
-            await ctx.respond("Please provide a Steam ID or use /setid.")
-            return
-
-    possible_id = get_user_id(steam_id)
-    if possible_id is not None:
-        data = get_player_ban(possible_id)
-        url = f"http://steamcommunity.com/profiles/{possible_id}/"
-    else:
-        url = f"http://steamcommunity.com/profiles/{steam_id}/"
-        data = get_player_ban(steam_id)
-
-    if data is None:
-        await ctx.respond("Could not find a player with that name or ID!")
-        return
-    embed = discord.Embed(title=f"Ban profile of {steam_id}", type='rich',
-                          color=0x0c0c28, url=url)
-    embed.add_field(name=f"VAC Ban", value=data['VACBanned'])
-    embed.add_field(name=f"Number of VAC bans", value=data['NumberOfVACBans'])
-    embed.add_field(name=f"Days Since Last Ban", value=data['DaysSinceLastBan'])
-    embed.add_field(name=f"Number of game bans", value=data['NumberOfGameBans'])
-    embed.add_field(name=f"Community ban", value=data['CommunityBanned'])
-    embed.add_field(name=f"Economy ban", value=data['EconomyBan'])
-
-    await ctx.respond(embed=embed)
-
-
 @client.slash_command(name='ping')
 async def ping(ctx):
     await ctx.respond(f"My ping is: {round(client.latency * 1000)}ms")
@@ -69,7 +38,7 @@ async def cs_news(ctx):
     html_tags = re.compile(r'<[^>]+>')
     for art in articles:
         # Create the embed for each page; 1 per article
-        embed = discord.Embed(title=f"CSGO News", type='rich', color=0x0c0c28, url=art['url'].replace(" ", ""))
+        embed = discord.Embed(title="CSGO News", type='rich', color=0x0c0c28, url=art['url'].replace(" ", ""))
         embed.add_field(name=art['title'], value=html_tags.sub('', art['contents']))
         contents.append(embed)
     pages = 5
@@ -132,7 +101,7 @@ async def set_id(ctx, steam_id: str):
 async def get_id(ctx):
     steam_id = query_steam_id(ctx.author.id)
     if steam_id is None:
-        await ctx.respond(f"Please use /setid to set your Steam ID!")
+        await ctx.respond("Please use /setid to set your Steam ID!")
         return
     await ctx.respond(f"Your steam ID is: {steam_id}")
 
@@ -144,19 +113,52 @@ async def profile(ctx, steam_id=""):
         if steam_id is None:
             await ctx.respond("Please provide a Steam ID or use /setid.")
             return
+    possible_id = get_user_id(steam_id)
+    if possible_id is not None:
+        steam_id = possible_id
 
+    ban_data = get_player_ban(steam_id)
     data = get_player_profile(steam_id)
+    friends = get_player_friends(steam_id)
 
     if data is None:
         await ctx.respond("Could not find a player with that name or ID!")
         return
-    embed = discord.Embed(title=f"Ban profile of {data['personaname']}", type='rich',
+    embed = discord.Embed(title=f"Profile of {data['personaname']}", type='rich',
                           color=0x0c0c28, url=data['profileurl'])
-    embed.set_author(name=data['personaname'], url=data['avatar'])
-    embed.add_field(name=f"Real name", value=data['realname'])
-    embed.add_field(name=f"Last Online", value=datetime.datetime.fromtimestamp(data['lastlogoff']))
+
+    friend_ids = []
+    for key in friends.keys():
+        friend_ids.append(key)
+    friend_ids = friend_ids[0:3]
+    friend_text: str = ""
+    for i in friend_ids:
+        friend = get_player_profile(i)
+        friend_text += f"{friend['personaname']}, <t:{friends[i]}:D>\n"
+    embed.add_field(name="Friends, Friends Since", value=friend_text)
+    try:
+        embed.add_field(name=f"Last Online", value=f"<t:{data['lastlogoff']}:f>")
+    except KeyError:
+        embed.add_field(name=f"Private", value="This profile is private!")
+    embed.set_author(name=data['personaname'], icon_url=data['avatar'], url=data['profileurl'])
+    embed.add_field(name=f"Bans",
+                    value=f"VAC Ban: {ban_data['VACBanned']}\nDays since last ban: {ban_data['DaysSinceLastBan']}\nEconomy Ban: {ban_data['EconomyBan']}\nCommunity Ban: {ban_data['CommunityBanned']}", inline=True)
+    embed.add_field(name=f"Real name", value=data['realname'], inline=True)
     await ctx.respond(embed=embed)
 
+
+@client.slash_command(name="help")
+async def help_(ctx):
+    embed = discord.Embed(title="Help Information", type="rich", color=0x0c0c28,
+                          url="https://github.com/ahmetmutlugun/vapor")
+    embed.add_field(name="ping", value="Displays the bot's ping.")
+    embed.add_field(name="csnews", value="Shows the latest CS:GO news.")
+    embed.add_field(name="setid", value="Links steam account.")
+    embed.add_field(name="getid", value="Shows the linked steam account.")
+    embed.add_field(name="profile",  value="Displays profile and ban information.")
+    embed.add_field(name="inventory", value="Calculate CS:GO inventory value.")
+    embed.add_field(name="item", value="Shows the price of the selected item.")
+    await ctx.respond(embed=embed)
 
 file = open("keys/discord.key", "r")
 token = file.read()

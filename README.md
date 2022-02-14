@@ -14,10 +14,10 @@ Brings up the latest CS:GO news.
 Find ban information of a player. Use the custom url or the steam ID
 
 
-## Installation
+ ## Setup
 ### Requirements
 [Docker](https://docs.docker.com/)
-### Installation
+ ### Installation
 For Linux/OSX, run the following command in the project folder to create the required Docker image.  
 ```docker run -p 5432:5432 -d -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres -e POSTGRES_DB=my-db -v pgdata:/var/lib/postgresql/data --name first_pg postgres```  
 Next, run the following to enter the postgres instance.  

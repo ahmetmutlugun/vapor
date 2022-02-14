@@ -3,7 +3,6 @@ import logging
 import re
 import discord
 from discord.ext import commands
-import datetime
 from helpers import get_news, get_valid_steam_id, get_player_ban, exec_query, get_player_friends, get_player_profile, query_steam_id, get_user_id
 from inventory import Inventory
 
@@ -137,13 +136,13 @@ async def profile(ctx, steam_id=""):
         friend_text += f"{friend['personaname']}, <t:{friends[i]}:D>\n"
     embed.add_field(name="Friends, Friends Since", value=friend_text)
     try:
-        embed.add_field(name=f"Last Online", value=f"<t:{data['lastlogoff']}:f>")
+        embed.add_field(name="Last Online", value=f"<t:{data['lastlogoff']}:f>")
     except KeyError:
-        embed.add_field(name=f"Private", value="This profile is private!")
+        embed.add_field(name="Private", value="This profile is private!")
     embed.set_author(name=data['personaname'], icon_url=data['avatar'], url=data['profileurl'])
-    embed.add_field(name=f"Bans",
+    embed.add_field(name="Bans",
                     value=f"VAC Ban: {ban_data['VACBanned']}\nDays since last ban: {ban_data['DaysSinceLastBan']}\nEconomy Ban: {ban_data['EconomyBan']}\nCommunity Ban: {ban_data['CommunityBanned']}", inline=True)
-    embed.add_field(name=f"Real name", value=data['realname'], inline=True)
+    embed.add_field(name="Real name", value=data['realname'], inline=True)
     await ctx.respond(embed=embed)
 
 

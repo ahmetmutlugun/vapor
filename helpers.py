@@ -33,7 +33,7 @@ def set_all_item_prices():
 
 def get_player_friends(steam_id):
     r = requests.get(
-        f'http://api.steampowered.com/ISteamUser/GetFriendList/v0001/',
+        'http://api.steampowered.com/ISteamUser/GetFriendList/v0001/',
         headers=headers, params={'steamid': [steam_id], "key": steam_key, 'relationship': "friend"})
     friends = {}
     for i in r.json()['friendslist']['friends']:
@@ -44,7 +44,7 @@ def get_player_friends(steam_id):
 
 def get_player_profile(steam_id):
     r = requests.get(
-        f'http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/',
+        'http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/',
         headers=headers, params={'steamids': [steam_id], "key": steam_key})
     try:
         return r.json()['response']['players'][0]
@@ -73,7 +73,7 @@ def get_user_id(name: str):  # Get Steam ID from custom url
 
 def get_player_ban(steam_id):  # Get ban infromation from Steam ID
     r = requests.get(
-        f' http://api.steampowered.com/ISteamUser/GetPlayerBans/v1',
+        ' http://api.steampowered.com/ISteamUser/GetPlayerBans/v1',
         params={"key": steam_key, "steamids": f"{steam_id}"},
         headers=headers)
     data = json.loads(r.content.decode('utf-8'))
@@ -115,7 +115,7 @@ async def calc_inventory_value(assets):
 def get_all_item_values():
     # Send a request to csgobackpack API to get all items
     r = requests.get(
-        f'http://csgobackpack.net/api/GetItemsList/v2/',
+        'http://csgobackpack.net/api/GetItemsList/v2/',
         headers=headers)
     return r.json()['items_list']
 

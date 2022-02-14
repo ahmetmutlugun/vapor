@@ -33,6 +33,7 @@ async def get_items(ctx: discord.AutocompleteContext):
 class Inventory(commands.Cog):
     def __init__(self, client):
         """
+
         Cog for inventory and item price commands
         :param client: discord client
         """
@@ -75,8 +76,8 @@ class Inventory(commands.Cog):
                 embed = discord.Embed(title=f"{item}", type='rich',
                                       color=0x0c0c28,
                                       url=f"https://steamcommunity.com/market/listings/730/{str(item).replace(' ', '%20')}")
-                embed.add_field(name=f"Average Price:", value=f"${round(float(r.json()['average_price']), 2)}")
-                embed.add_field(name=f"Median Price:", value=f"${round(float(r.json()['median_price']), 2)}")
+                embed.add_field(name="Average Price:", value=f"${round(float(r.json()['average_price']), 2)}")
+                embed.add_field(name="Median Price:", value=f"${round(float(r.json()['median_price']), 2)}")
                 embed.add_field(name="Amount on sale:", value=r.json()['amount_sold'])
                 embed.set_thumbnail(url=r.json()['icon'])
                 await ctx.respond(embed=embed)

@@ -1,5 +1,8 @@
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/548b21bd9dee447db103e18ede836308)](https://www.codacy.com/gh/ahmetmutlugun/vapor/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=ahmetmutlugun/vapor&amp;utm_campaign=Badge_Grade)
-
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/ahmetmutlugun/vapor/CodeQL)  
+![GitHub commit activity](https://img.shields.io/github/commit-activity/m/ahmetmutlugun/vapor)
+![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/ahmetmutlugun/vapor)  
+![GitHub Repo stars](https://img.shields.io/github/stars/ahmetmutlugun/vapor?style=social)
 # Steam Discord Bot
 A discord bot made in Python to bring Steam API features into Discord.  
 

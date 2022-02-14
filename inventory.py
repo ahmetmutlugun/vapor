@@ -32,9 +32,8 @@ async def get_items(ctx: discord.AutocompleteContext):
 
 class Inventory(commands.Cog):
     def __init__(self, client):
-        """
+        """Cog for inventory and item price commands
 
-        Cog for inventory and item price commands
         :param client: discord client
         """
         self.client = client

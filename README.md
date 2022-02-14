@@ -13,7 +13,6 @@ Brings up the latest CS:GO news.
 ```/banstatus CUSTOM_URL```  
 Find ban information of a player. Use the custom url or the steam ID
 
-
  ## Setup
 ### Requirements
 [Docker](https://docs.docker.com/)

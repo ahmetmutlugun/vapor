@@ -113,6 +113,7 @@ async def calc_inventory_value(assets):
 
 
 def get_all_item_values():
+    # Send a request to csgobackpack API to get all items
     r = requests.get(
         f'http://csgobackpack.net/api/GetItemsList/v2/',
         headers=headers)
@@ -120,7 +121,6 @@ def get_all_item_values():
 
 
 def exec_query(query_string: str, params: tuple):
-    res = []
     # Establish a session with the postgres database
     with psycopg2.connect(
             host=os.environ["HOST"],
@@ -138,6 +138,7 @@ def exec_query(query_string: str, params: tuple):
                 res = []
     # Return all the results
     return res
+
 
 
 def query_steam_id(author_id):

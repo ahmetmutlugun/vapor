@@ -71,6 +71,7 @@ class Inventory(commands.Cog):
                 f'http://csgobackpack.net/api/GetItemPrice/?currency=USD&id={str(item).replace(" ", "%20")}&time=7&icon=1',
                 headers=headers)
             try:
+                # Create an embed with the items stats
                 embed = discord.Embed(title=f"{item}", type='rich',
                                       color=0x0c0c28,
                                       url=f"https://steamcommunity.com/market/listings/730/{str(item).replace(' ', '%20')}")

@@ -36,9 +36,12 @@ def get_player_friends(steam_id):
         'http://api.steampowered.com/ISteamUser/GetFriendList/v0001/',
         headers=headers, params={'steamid': [steam_id], "key": steam_key, 'relationship': "friend"})
     friends = {}
-    for i in r.json()['friendslist']['friends']:
-        friends.update({i['steamid']: i['friend_since']})
-    friends = dict(sorted(friends.items(), key=lambda x: x[1]))
+    try:
+        for i in r.json()['friendslist']['friends']:
+            friends.update({i['steamid']: i['friend_since']})
+        friends = dict(sorted(friends.items(), key=lambda x: x[1]))
+    except KeyError:
+        return None
     return friends
 
 
@@ -98,19 +101,15 @@ async def calc_inventory_value(assets):
         else:
             id_dictionary.update({i['classid']: 1})
     asset_list = []
+    total: float = 0.0
     for i in assets['descriptions']:
         for _ in range(0, id_dictionary[i['classid']]):
             asset_list.append(i['market_hash_name'])
-    total: float = 0
-    for i in asset_list:
-        try:
-            logging.info(i)
-            logging.info(all_item_prices[i])
-            total += all_item_prices[i]
-        except KeyError:
-            pass
+            try:
+                total += all_item_prices[i['market_hash_name']]
+            except KeyError:
+                pass
     return round(total, 2)
-
 
 def get_all_item_values():
     # Send a request to csgobackpack API to get all items
@@ -138,7 +137,6 @@ def exec_query(query_string: str, params: tuple):
                 res = []
     # Return all the results
     return res
-
 
 
 def query_steam_id(author_id):

@@ -32,13 +32,14 @@ async def get_items(ctx: discord.AutocompleteContext):
 
 class Inventory(commands.Cog):
     def __init__(self, client):
-        """Cog for inventory and item price commands
+        """
+        Cog for inventory and item price commands
 
         :param client: discord client
         """
         self.client = client
 
-    @slash_command(name="inventory")
+    @slash_command(name="inventory", description="Check total inventory price.")
     async def get_inventory(self, ctx, steam_id=""):
         if steam_id == "":  # If the user didn't enter a steam id
             user_id_response = exec_query("SELECT steam_id FROM steam_data WHERE discord_id=(%s)",
@@ -64,7 +65,7 @@ class Inventory(commands.Cog):
         value = await calc_inventory_value(assets)
         await ctx.respond(f"Inventory value of {steam_id} is ${value}")
 
-    @slash_command(name="item")
+    @slash_command(name="item", description="Shows individual item prices.")
     async def item(self, ctx: discord.ApplicationContext, item: Option(str, "Pick an item:", autocomplete=get_items)):
         if item in autocomplete_item_list:
             r = requests.get(

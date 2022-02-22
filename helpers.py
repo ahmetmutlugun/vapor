@@ -111,6 +111,7 @@ async def calc_inventory_value(assets):
                 pass
     return round(total, 2)
 
+
 def get_all_item_values():
     # Send a request to csgobackpack API to get all items
     r = requests.get(

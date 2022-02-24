@@ -101,15 +101,17 @@ async def calc_inventory_value(assets):
         else:
             id_dictionary.update({i['classid']: 1})
     asset_list = []
+    asset_dict = {}
     total: float = 0.0
     for i in assets['descriptions']:
         for _ in range(0, id_dictionary[i['classid']]):
             asset_list.append(i['market_hash_name'])
             try:
                 total += all_item_prices[i['market_hash_name']]
+                asset_dict.update({i['market_hash_name'] : all_item_prices[i['market_hash_name']]})
             except KeyError:
                 pass
-    return round(total, 2)
+    return round(total, 2), asset_dict
 
 
 def get_all_item_values():

@@ -62,8 +62,16 @@ class Inventory(commands.Cog):
             await ctx.respond(f"{steam_id}'s inventory is private!")
             return
 
-        value = await calc_inventory_value(assets)
-        await ctx.respond(f"Inventory value of {steam_id} is ${value}")
+        results = await calc_inventory_value(assets)
+        embed = discord.Embed(title=f"Inventory value of {steam_id}", type='rich',
+                              color=0x0c0c28,
+                              url=f"https://steamcommunity.com/market/listings/730/{str(item).replace(' ', '%20')}")
+        embed.add_field(name="Average Price:", value=f"${round(float(r.json()['average_price']), 2)}")
+        embed.add_field(name="Median Price:", value=f"${round(float(r.json()['median_price']), 2)}")
+        embed.add_field(name="Amount on sale:", value=r.json()['amount_sold'])
+        embed.set_thumbnail(url=r.json()['icon'])
+        await ctx.respond(embed=embed)
+        await ctx.respond(f"Inventory value of {steam_id} is ${results[0]}")
 
     @slash_command(name="item", description="Shows individual item prices.")
     async def item(self, ctx: discord.ApplicationContext, item: Option(str, "Pick an item:", autocomplete=get_items)):

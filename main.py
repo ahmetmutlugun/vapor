@@ -3,17 +3,15 @@ import json
 import logging
 import re
 import discord
-from discord.ext import commands, tasks
-
-from helpers import *
+from discord.ext import commands
+from helpers import get_news, get_valid_steam_id, get_player_ban, exec_query, get_player_friends, get_player_profile, query_steam_id, get_user_id
 from inventory import Inventory
 
 # TODO
-# Use steam id from the database when running /banstatus
-# Display more information in the ban status embed
 # Respond with the linked profile to /getid and /setid
 # Add user profile command to display profile embeds
 
+logging.basicConfig(level=logging.INFO)
 logging.info("Running Script...")
 client = commands.AutoShardedBot(description="Bringing Steam features as a Discord bot.")
 NEWS_CHANNEL = 853516997747933225853517404218982420
@@ -25,30 +23,6 @@ async def on_ready():
     logging.info(f"Logged in as {client.user} (Discord ID: {client.user.id})")
     for guild in client.guilds:
         guilds.append(guild)
-
-
-@client.slash_command(name="banstatus")
-async def ban_status(ctx, steam_id):
-    if steam_id is None:
-        await ctx.respond("Please provide a Steam ID or custom URL!")
-        return
-    possible_id = get_user_id(steam_id)
-    if possible_id is not None:
-        data = get_player_ban(possible_id)
-        url = f"http://steamcommunity.com/profiles/{possible_id}/"
-    else:
-        url = f"http://steamcommunity.com/profiles/{steam_id}/"
-        data = get_player_ban(steam_id)
-
-    if data is None:
-        await ctx.respond("Could not find a player with that name or ID!")
-        return
-    embed = discord.Embed(title=f"Profile of {steam_id}", type='rich',
-                          color=0x0c0c28, url=url)
-    embed.add_field(name=f"VAC Banned?", value=data['VACBanned'])
-    embed.add_field(name=f"Days Since Last Ban", value=data['DaysSinceLastBan'])
-
-    await ctx.respond(embed=embed)
 
 
 @client.slash_command(name='ping')
@@ -65,19 +39,19 @@ async def cs_news(ctx):
     html_tags = re.compile(r'<[^>]+>')
     for art in articles:
         # Create the embed for each page; 1 per article
-        embed = discord.Embed(title=f"CSGO News", type='rich', color=0x0c0c28, url=art['url'].replace(" ", ""))
+        embed = discord.Embed(title="CSGO News", type='rich', color=0x0c0c28, url=art['url'].replace(" ", ""))
         embed.add_field(name=art['title'], value=html_tags.sub('', art['contents']))
         contents.append(embed)
     pages = 5
     cur_page = 1
-    message = await ctx.send(contents[cur_page - 1])
+    message = await ctx.send(embed=contents[cur_page - 1])
     # Getting the message object for editing and reacting
 
     await message.add_reaction("◀️")
     await message.add_reaction("▶️")
 
-    def check(reaction, user):
-        return user == ctx.author and str(reaction.emoji) in ["◀️", "▶️"]
+    def check(reaction_emoji, user_name):
+        return user_name == ctx.author and str(reaction_emoji.emoji) in ["◀️", "▶️"]
         # This makes sure nobody except the command sender can interact with the "menu"
 
     while True:
@@ -88,12 +62,12 @@ async def cs_news(ctx):
 
             if str(reaction.emoji) == "▶️" and cur_page != pages:
                 cur_page += 1
-                await message.edit(content=contents[cur_page - 1])
+                await message.edit(embed=contents[cur_page - 1])
                 await message.remove_reaction(reaction, user)
 
             elif str(reaction.emoji) == "◀️" and cur_page > 1:
                 cur_page -= 1
-                await message.edit(content=f"Page {cur_page}/{pages}:\n{contents[cur_page - 1]}")
+                await message.edit(embed=contents[cur_page - 1])
                 await message.remove_reaction(reaction, user)
 
             else:
@@ -126,11 +100,11 @@ async def set_id(ctx, steam_id: str):
 
 @client.slash_command(name="getid")
 async def get_id(ctx):
-    user_id_response = exec_query("SELECT steam_id FROM steam_data WHERE discord_id=(%s)", (str(ctx.author.id),))
-    if user_id_response:
-        await ctx.respond(f"Your steam ID is: {user_id_response[0][0]}")
+    steam_id = query_steam_id(ctx.author.id)
+    if steam_id is None:
+        await ctx.respond("Please use /setid to set your Steam ID!")
         return
-    await ctx.respond(f"Please use /setid to set your Steam ID!")
+    await ctx.respond(f"Your steam ID is: {steam_id}")
 
 
 @has_permissions(kick_member=True)
@@ -138,18 +112,7 @@ async def get_id(ctx):
 async def set_channel(ctx, channelid):
     global NEWS_CHANNEL
     NEWS_CHANNEL = channelid
-
-
-@client.slash_command(name="news")
-async def game_news(ctx, game_code):
-
-    # If the person needs help return an embed of all the supported codes = CSGO
-    if isinstance(game_code, str) and game_code == "help":
-        help = discord.Embed(title="Supported game news", color=0x0000FF)
-        help.add_field(name="CSGO", value=f"Game code: {730}", inline=True).set_image("https://static-cdn.jtvnw.net/ttv-boxart/32399-285x380.jpg")
-        # TODO: add other games
-
-
+    await ctx.respond(f"News channel has been set")
 
 
 @tasks.loop(minutes=60)
@@ -162,18 +125,16 @@ async def refresh_news():
         except Exception:
             old_news = ""
 
-
     # Send request to news API
     updated_news = json.dumps(get_news(), sort_keys=True)
 
     # If the old news isn't the same as the new news update the news.json file
-    chan = client.get_channel(NEWS_CHANNEL).r
+    channel = client.get_channel(NEWS_CHANNEL)
     if old_news != updated_news:
         with open('news.json', 'w') as outfile:
             outfile.write(updated_news)
 
-        channel = client.get_channel(NEWS_CHANNEL)
-        await channel.send(front_page_embed())
+    await channel.send(front_page_embed())
 
 
 def front_page_embed():
@@ -192,6 +153,59 @@ def front_page_embed():
 
     return embed
 
+@client.slash_command(name="profile")
+async def profile(ctx, steam_id=""):
+    if steam_id == "":
+        steam_id = query_steam_id(ctx.author.id)
+        if steam_id is None:
+            await ctx.respond("Please provide a Steam ID or use /setid.")
+            return
+    possible_id = get_user_id(steam_id)
+    if possible_id is not None:
+        steam_id = possible_id
+
+    ban_data = get_player_ban(steam_id)
+    data = get_player_profile(steam_id)
+    friends = get_player_friends(steam_id)
+
+    if data is None:
+        await ctx.respond("Could not find a player with that name or ID!")
+        return
+    embed = discord.Embed(title=f"Profile of {data['personaname']}", type='rich',
+                          color=0x0c0c28, url=data['profileurl'])
+
+    friend_ids = []
+    for key in friends.keys():
+        friend_ids.append(key)
+    friend_ids = friend_ids[0:3]
+    friend_text: str = ""
+    for i in friend_ids:
+        friend = get_player_profile(i)
+        friend_text += f"{friend['personaname']}, <t:{friends[i]}:D>\n"
+    embed.add_field(name="Friends, Friends Since", value=friend_text)
+    try:
+        embed.add_field(name="Last Online", value=f"<t:{data['lastlogoff']}:f>")
+    except KeyError:
+        embed.add_field(name="Private", value="This profile is private!")
+    embed.set_author(name=data['personaname'], icon_url=data['avatar'], url=data['profileurl'])
+    embed.add_field(name="Bans",
+                    value=f"VAC Ban: {ban_data['VACBanned']}\nDays since last ban: {ban_data['DaysSinceLastBan']}\nEconomy Ban: {ban_data['EconomyBan']}\nCommunity Ban: {ban_data['CommunityBanned']}", inline=True)
+    embed.add_field(name="Real name", value=data['realname'], inline=True)
+    await ctx.respond(embed=embed)
+
+
+@client.slash_command(name="help")
+async def help_(ctx):
+    embed = discord.Embed(title="Help Information", type="rich", color=0x0c0c28,
+                          url="https://github.com/ahmetmutlugun/vapor")
+    embed.add_field(name="ping", value="Displays the bot's ping.")
+    embed.add_field(name="csnews", value="Shows the latest CS:GO news.")
+    embed.add_field(name="setid", value="Links steam account.")
+    embed.add_field(name="getid", value="Shows the linked steam account.")
+    embed.add_field(name="profile",  value="Displays profile and ban information.")
+    embed.add_field(name="inventory", value="Calculate CS:GO inventory value.")
+    embed.add_field(name="item", value="Shows the price of the selected item.")
+    await ctx.respond(embed=embed)
 
 file = open("keys/discord.key", "r")
 token = file.read()

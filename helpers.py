@@ -4,7 +4,6 @@ import requests
 import json
 import os
 
-logging.basicConfig(level=logging.INFO)
 headers = {'Accept': 'application/json'}
 steam_key_file = open("keys/steam.key", "r")
 steam_key = steam_key_file.read()
@@ -32,6 +31,27 @@ def set_all_item_prices():
                         all_item_prices.update({i: 0})
 
 
+def get_player_friends(steam_id):
+    r = requests.get(
+        'http://api.steampowered.com/ISteamUser/GetFriendList/v0001/',
+        headers=headers, params={'steamid': [steam_id], "key": steam_key, 'relationship': "friend"})
+    friends = {}
+    for i in r.json()['friendslist']['friends']:
+        friends.update({i['steamid']: i['friend_since']})
+    friends = dict(sorted(friends.items(), key=lambda x: x[1]))
+    return friends
+
+
+def get_player_profile(steam_id):
+    r = requests.get(
+        'http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/',
+        headers=headers, params={'steamids': [steam_id], "key": steam_key})
+    try:
+        return r.json()['response']['players'][0]
+    except KeyError:
+        return None
+
+
 def get_valid_steam_id(steam_id):  # Check Steam ID validity or get Steam ID from custom url
     if get_player_ban(steam_id) is not None:
         return steam_id
@@ -53,7 +73,7 @@ def get_user_id(name: str):  # Get Steam ID from custom url
 
 def get_player_ban(steam_id):  # Get ban infromation from Steam ID
     r = requests.get(
-        f' http://api.steampowered.com/ISteamUser/GetPlayerBans/v1',
+        ' http://api.steampowered.com/ISteamUser/GetPlayerBans/v1',
         params={"key": steam_key, "steamids": f"{steam_id}"},
         headers=headers)
     data = json.loads(r.content.decode('utf-8'))
@@ -84,6 +104,8 @@ async def calc_inventory_value(assets):
     total: float = 0
     for i in asset_list:
         try:
+            logging.info(i)
+            logging.info(all_item_prices[i])
             total += all_item_prices[i]
         except KeyError:
             pass
@@ -93,7 +115,7 @@ async def calc_inventory_value(assets):
 def get_all_item_values():
     # Send a request to csgobackpack API to get all items
     r = requests.get(
-        f'http://csgobackpack.net/api/GetItemsList/v2/',
+        'http://csgobackpack.net/api/GetItemsList/v2/',
         headers=headers)
     return r.json()['items_list']
 
@@ -116,6 +138,14 @@ def exec_query(query_string: str, params: tuple):
                 res = []
     # Return all the results
     return res
+
+
+
+def query_steam_id(author_id):
+    user_id_response = exec_query("SELECT steam_id FROM steam_data WHERE discord_id=(%s)", (str(author_id),))
+    if user_id_response:
+        return user_id_response[0][0]
+    return
 
 
 set_all_item_prices()

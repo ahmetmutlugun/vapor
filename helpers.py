@@ -13,7 +13,7 @@ all_item_prices = {}  # Cache item prices
 
 
 def set_all_item_prices():
-    items = get_all_item_values()
+    items = get_all_item_values()  # has &#39
 
     for i in items:
         try:
@@ -93,25 +93,37 @@ def get_news(count: int = 1, appid: int = 730):
     return data['appnews']['newsitems']
 
 
+# Please don't look at this mess...
 async def calc_inventory_value(assets):
+    single_quote = "\'"
+    # Find number of item
     id_dictionary = {}
     for i in assets['assets']:
         if i['classid'] in id_dictionary:
             id_dictionary.update({i['classid']: id_dictionary[i['classid']] + 1})
         else:
             id_dictionary.update({i['classid']: 1})
+
     asset_list = []
     asset_dict = {}
     total: float = 0.0
     for i in assets['descriptions']:
         for _ in range(0, id_dictionary[i['classid']]):
-            asset_list.append(i['market_hash_name'])
+            asset_list.append(i['market_hash_name'].replace(single_quote, "&#39"))
             try:
-                total += all_item_prices[i['market_hash_name']]
-                asset_dict.update({i['market_hash_name'] : all_item_prices[i['market_hash_name']]})
+                total += all_item_prices[i['market_hash_name'].replace(single_quote, "&#39")]
+                asset_dict.update({all_item_prices[i['market_hash_name'].replace(single_quote, "&#39")]: i[
+                    'market_hash_name'].replace(single_quote, "&#39")})
             except KeyError:
                 pass
-    return round(total, 2), asset_dict
+    item_values = list(sorted(asset_dict))[::-1]
+    top_items = ""
+    length = len(item_values)
+    if length > 5:
+        length = 5
+    for item_value in item_values[0:length]:
+        top_items += f"{str(asset_dict.get(item_value)).replace('&#39', single_quote, )}: ${item_value}\n"
+    return round(total, 2), top_items
 
 
 def get_all_item_values():

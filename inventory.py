@@ -1,20 +1,22 @@
+import logging
+
 from discord.commands import \
     slash_command, Option
 
 from discord.ext import commands
 import discord
 import requests
-from helpers import get_all_item_values, exec_query, calc_inventory_value, get_valid_steam_id, headers
+from helpers import get_all_item_values, exec_query, calc_inventory_value, get_valid_steam_id, headers, \
+    get_player_profile
 
 autocomplete_item_list = []
-all_item_prices = {}
 
 
 def set_autocomplete_items():
     all_items = get_all_item_values()
 
     for i in all_items:
-        autocomplete_item_list.append(i)
+        autocomplete_item_list.append(i.replace("&#39","\'"))
 
 
 async def get_items(ctx: discord.AutocompleteContext):
@@ -57,33 +59,35 @@ class Inventory(commands.Cog):
         r = requests.get(f"https://steamcommunity.com/inventory/{steam_id}/730/2?l=english&count=5000",
                          headers=headers)
         assets = r.json()
+        data = get_player_profile(steam_id)
 
         if assets is None:
             await ctx.respond(f"{steam_id}'s inventory is private!")
             return
 
         results = await calc_inventory_value(assets)
-        embed = discord.Embed(title=f"Inventory value of {steam_id}", type='rich',
+        embed = discord.Embed(title=f"CS:GO Inventory Value of {data['personaname']}", type='rich',
                               color=0x0c0c28,
-                              url=f"https://steamcommunity.com/market/listings/730/{str(item).replace(' ', '%20')}")
-        embed.add_field(name="Average Price:", value=f"${round(float(r.json()['average_price']), 2)}")
-        embed.add_field(name="Median Price:", value=f"${round(float(r.json()['median_price']), 2)}")
-        embed.add_field(name="Amount on sale:", value=r.json()['amount_sold'])
-        embed.set_thumbnail(url=r.json()['icon'])
+                              url=data['profileurl'] + "inventory/")
+        embed.add_field(name="Total Value", value=f"${results[0]}", inline=False)
+        embed.add_field(name="Top Items:", value=results[1])
+        embed.set_author(name=data['personaname'], icon_url=data['avatar'], url=data['profileurl'])
         await ctx.respond(embed=embed)
-        await ctx.respond(f"Inventory value of {steam_id} is ${results[0]}")
 
     @slash_command(name="item", description="Shows individual item prices.")
     async def item(self, ctx: discord.ApplicationContext, item: Option(str, "Pick an item:", autocomplete=get_items)):
+        single_quote = "\'"
         if item in autocomplete_item_list:
             r = requests.get(
-                f'http://csgobackpack.net/api/GetItemPrice/?currency=USD&id={str(item).replace(" ", "%20")}&time=7&icon=1',
+                f'http://csgobackpack.net/api/GetItemPrice/?currency=USD&id={str(item).replace(" ", "%20").replace("&#39", single_quote)}&time=7&icon=1',
                 headers=headers)
+
             try:
                 # Create an embed with the items stats
+
                 embed = discord.Embed(title=f"{item}", type='rich',
                                       color=0x0c0c28,
-                                      url=f"https://steamcommunity.com/market/listings/730/{str(item).replace(' ', '%20')}")
+                                      url=f'https://steamcommunity.com/market/listings/730/{str(item).replace(" ", "%20").replace("&#39",single_quote)}')
                 embed.add_field(name="Average Price:", value=f"${round(float(r.json()['average_price']), 2)}")
                 embed.add_field(name="Median Price:", value=f"${round(float(r.json()['median_price']), 2)}")
                 embed.add_field(name="Amount on sale:", value=r.json()['amount_sold'])
@@ -91,6 +95,7 @@ class Inventory(commands.Cog):
                 await ctx.respond(embed=embed)
             except KeyError:
                 await ctx.respond(f"Could not find a price for {item}!")
+                logging.error(f'https://steamcommunity.com/market/listings/730/{str(item).replace(" ", "%20")}')
             return
         await ctx.respond("Please choose an item from the auto complete list.")
 

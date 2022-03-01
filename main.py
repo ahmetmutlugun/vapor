@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import re
 import discord
@@ -14,7 +15,7 @@ from inventory import Inventory
 logging.basicConfig(level=logging.INFO)
 logging.info("Running Script...")
 client = commands.AutoShardedBot(description="Bringing Steam features as a Discord bot.")
-
+NEWS_CHANNEL = 853516997747933225853517404218982420
 guilds = []
 
 
@@ -32,8 +33,9 @@ async def ping(ctx):
 
 @client.slash_command(name="csnews", guilds_ids=guilds, description="Show the latest CS:GO news.")
 async def cs_news(ctx):
-    # To get csgo news use app id 730
-    articles = get_news(count=5, appid=730)
+    # Get the news from the news.json file which is updated every hour
+    with open('news.json', 'r') as f:
+         articles = json.load(f)
     contents = []
     html_tags = re.compile(r'<[^>]+>')
     for art in articles:
@@ -110,8 +112,55 @@ async def get_id(ctx):
     else:
         await ctx.respond("Please use /setid to set your Steam ID!")
 
+        
+@has_permissions(kick_member=True)
+@client.slash_command(name="setchannel")
+async def set_channel(ctx, channelid):
+    global NEWS_CHANNEL
+    NEWS_CHANNEL = channelid
+    await ctx.respond(f"News channel has been set")
+
+
+@tasks.loop(minutes=60)
+async def refresh_news():
+
+    # Read existing articles from news.json
+    with open('news.json', 'r') as json_file:
+        try:
+            old_news = json.dumps(json.load(json_file), sort_keys=True)
+        except Exception:
+            old_news = ""
+
+    # Send request to news API
+    updated_news = json.dumps(get_news(), sort_keys=True)
+
+    # If the old news isn't the same as the new news update the news.json file
+    channel = client.get_channel(NEWS_CHANNEL)
+    if old_news != updated_news:
+        with open('news.json', 'w') as outfile:
+            outfile.write(updated_news)
+
+    await channel.send(front_page_embed())
+
+
+def front_page_embed():
+    """
+    Creates an embed of the front page of the news
+    :return: the Discord Embed
+    """
+    with open('news.json', 'r') as f:
+        articles = json.load(f)
+
+    front_page = articles[0]
+    contents = []
+    html_tags = re.compile(r'<[^>]+>')
+    embed = discord.Embed(title=f"CSGO News", type='rich', color=0x0c0c28, url=front_page['url'].replace(" ", ""))
+    embed.add_field(name=front_page['title'], value=html_tags.sub('', art['contents']))
+
+    return embed
 
 @client.slash_command(name="profile", description="Show the profile of a steam user.")
+
 async def profile(ctx, steam_id=""):
     if (i := generate_profile_embed(steam_id, ctx.author.id)) is not None:
         await ctx.respond(embed=i)

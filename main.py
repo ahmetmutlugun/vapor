@@ -2,9 +2,15 @@ import asyncio
 import json
 import logging
 import re
+from abc import ABC
+
+from discord.ext import tasks
 import discord
 from discord.ext import commands
-from helpers import get_news, get_valid_steam_id, get_player_ban, exec_query, get_player_friends, get_player_profile, query_steam_id, get_user_id
+from discord.ext.commands import has_permissions
+
+from helpers import get_news, get_valid_steam_id, get_player_ban, exec_query, get_player_friends, get_player_profile, \
+    query_steam_id, get_user_id
 from inventory import Inventory
 
 # TODO
@@ -13,9 +19,43 @@ from inventory import Inventory
 
 logging.basicConfig(level=logging.INFO)
 logging.info("Running Script...")
-client = commands.AutoShardedBot(description="Bringing Steam features as a Discord bot.")
-NEWS_CHANNEL = 853516997747933225853517404218982420
+# client = commands.AutoShardedBot(description="Bringing Steam features as a Discord bot.")
+NEWS_CHANNEL = 825110522922926144
 guilds = []
+
+
+class Vapor(commands.AutoShardedBot, ABC):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Start the task to run in the background
+        self.refresh_news.start()
+        self.client = self
+
+    @tasks.loop(minutes=30)
+    async def refresh_news(self):
+        await self.wait_until_ready()
+        channel = self.get_channel(825110522922926144)
+        # Read existing articles from news.json
+        with open('news.json', 'r') as json_file:
+            try:
+                old_news = json.dumps(json.load(json_file), sort_keys=True)
+            except Exception:  # Too broad
+                old_news = ""
+
+        # Send request to news API
+        updated_news = json.dumps(get_news(), sort_keys=True)
+
+        # If the old news isn't the same as the new news update the news.json file
+
+        if old_news != updated_news:
+            with open('news.json', 'w') as outfile:
+                outfile.write(updated_news)
+
+        await channel.send(embed=front_page_embed())
+
+
+client = Vapor(description="Bringing Steam features as a Discord bot.")
 
 
 @client.event
@@ -34,7 +74,7 @@ async def ping(ctx):
 async def cs_news(ctx):
     # Get the news from the news.json file which is updated every hour
     with open('news.json', 'r') as f:
-         articles = json.load(f)
+        articles = json.load(f)
     contents = []
     html_tags = re.compile(r'<[^>]+>')
     for art in articles:
@@ -107,34 +147,12 @@ async def get_id(ctx):
     await ctx.respond(f"Your steam ID is: {steam_id}")
 
 
-@has_permissions(kick_member=True)
+@has_permissions(administrator=True)
 @client.slash_command(name="setchannel")
 async def set_channel(ctx, channelid):
     global NEWS_CHANNEL
     NEWS_CHANNEL = channelid
-    await ctx.respond(f"News channel has been set")
-
-
-@tasks.loop(minutes=60)
-async def refresh_news():
-
-    # Read existing articles from news.json
-    with open('news.json', 'r') as json_file:
-        try:
-            old_news = json.dumps(json.load(json_file), sort_keys=True)
-        except Exception:
-            old_news = ""
-
-    # Send request to news API
-    updated_news = json.dumps(get_news(), sort_keys=True)
-
-    # If the old news isn't the same as the new news update the news.json file
-    channel = client.get_channel(NEWS_CHANNEL)
-    if old_news != updated_news:
-        with open('news.json', 'w') as outfile:
-            outfile.write(updated_news)
-
-    await channel.send(front_page_embed())
+    await ctx.respond(f"News channel has been set to {channelid}")
 
 
 def front_page_embed():
@@ -149,9 +167,10 @@ def front_page_embed():
     contents = []
     html_tags = re.compile(r'<[^>]+>')
     embed = discord.Embed(title=f"CSGO News", type='rich', color=0x0c0c28, url=front_page['url'].replace(" ", ""))
-    embed.add_field(name=front_page['title'], value=html_tags.sub('', art['contents']))
+    embed.add_field(name=front_page['title'], value=html_tags.sub('', articles[0]['contents']))
 
     return embed
+
 
 @client.slash_command(name="profile")
 async def profile(ctx, steam_id=""):
@@ -189,7 +208,8 @@ async def profile(ctx, steam_id=""):
         embed.add_field(name="Private", value="This profile is private!")
     embed.set_author(name=data['personaname'], icon_url=data['avatar'], url=data['profileurl'])
     embed.add_field(name="Bans",
-                    value=f"VAC Ban: {ban_data['VACBanned']}\nDays since last ban: {ban_data['DaysSinceLastBan']}\nEconomy Ban: {ban_data['EconomyBan']}\nCommunity Ban: {ban_data['CommunityBanned']}", inline=True)
+                    value=f"VAC Ban: {ban_data['VACBanned']}\nDays since last ban: {ban_data['DaysSinceLastBan']}\nEconomy Ban: {ban_data['EconomyBan']}\nCommunity Ban: {ban_data['CommunityBanned']}",
+                    inline=True)
     embed.add_field(name="Real name", value=data['realname'], inline=True)
     await ctx.respond(embed=embed)
 
@@ -202,10 +222,11 @@ async def help_(ctx):
     embed.add_field(name="csnews", value="Shows the latest CS:GO news.")
     embed.add_field(name="setid", value="Links steam account.")
     embed.add_field(name="getid", value="Shows the linked steam account.")
-    embed.add_field(name="profile",  value="Displays profile and ban information.")
+    embed.add_field(name="profile", value="Displays profile and ban information.")
     embed.add_field(name="inventory", value="Calculate CS:GO inventory value.")
     embed.add_field(name="item", value="Shows the price of the selected item.")
     await ctx.respond(embed=embed)
+
 
 file = open("keys/discord.key", "r")
 token = file.read()

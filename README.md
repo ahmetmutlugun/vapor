@@ -25,10 +25,11 @@ Find ban information of a player. Use the custom url or the steam ID
 For Linux/OSX, run the following command in the project folder to create the required Docker image.  
 ```docker run -p 5432:5432 -d -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres -e POSTGRES_DB=my-db -v pgdata:/var/lib/postgresql/data --name first_pg postgres```  
 Next, run the following to enter the postgres instance.  
-```docker exec -ti firest_pg psql -U postgres```  
+```docker exec -ti first_pg psql -U postgres```  
 In the PSQ, run the command ```\c postgres```
 And finally, run this command to create the database.
-```CREATE TABLE steam_data(
+```
+CREATE TABLE steam_data(
 discord_id varchar(50) NOT NULL PRIMARY KEY,
 steam_id varchar(50) NOT NULL); 
 ```  

@@ -79,7 +79,7 @@ def get_player_ban(steam_id):  # Get ban infromation from Steam ID
         ' http://api.steampowered.com/ISteamUser/GetPlayerBans/v1',
         params={"key": steam_key, "steamids": f"{steam_id}"},
         headers=headers)
-    data = json.loads(r.content.decode('utf-8'))
+    data = r.json()
     if len(data['players']) < 1:
         return None
     return data["players"][0]

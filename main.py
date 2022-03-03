@@ -20,12 +20,20 @@ from inventory import Inventory
 logging.basicConfig(level=logging.INFO)
 logging.info("Running Script...")
 # client = commands.AutoShardedBot(description="Bringing Steam features as a Discord bot.")
-NEWS_CHANNEL = 825110522922926144
+NEWS_CHANNEL = 891028959041585162
 guilds = []
 
 
 class Vapor(commands.AutoShardedBot, ABC):
+    """
+    Custom AutoShardedBot to create loop commands
+    """
     def __init__(self, *args, **kwargs):
+        """
+        Starts refresh_news
+        :param args: args
+        :param kwargs: kwargs
+        """
         super().__init__(*args, **kwargs)
 
         # Start the task to run in the background
@@ -34,8 +42,11 @@ class Vapor(commands.AutoShardedBot, ABC):
 
     @tasks.loop(minutes=30)
     async def refresh_news(self):
+        """
+        Checks for new news every 30 minutes, and sends them to the news channel.
+        """
         await self.wait_until_ready()
-        channel = self.get_channel(825110522922926144)
+        channel = self.get_channel(891028959041585162)
         # Read existing articles from news.json
         with open('news.json', 'r') as json_file:
             try:
@@ -60,6 +71,10 @@ client = Vapor(description="Bringing Steam features as a Discord bot.")
 
 @client.event
 async def on_ready():
+    """
+    Records guilds and status when the bot is ready
+    :return:
+    """
     logging.info(f"Logged in as {client.user} (Discord ID: {client.user.id})")
     for guild in client.guilds:
         guilds.append(guild)
@@ -67,12 +82,19 @@ async def on_ready():
 
 @client.slash_command(name='ping', description="Displays latency.")
 async def ping(ctx):
+    """
+    Sends ping in milliseconds
+    :param ctx: Context
+    """
     await ctx.respond(f"My ping is: {round(client.latency * 1000)}ms")
 
 
 @client.slash_command(name="csnews", guilds_ids=guilds, description="Show the latest CS:GO news.")
 async def cs_news(ctx):
-    # Get the news from the news.json file which is updated every hour
+    """
+    Get the news from the news.json file which is updated every hour
+    :param ctx: Context
+    """
     with open('news.json', 'r') as f:
         articles = json.load(f)
     contents = []
@@ -122,6 +144,11 @@ async def cs_news(ctx):
 
 @client.slash_command(name="setid", description="Link a steam account to your account")
 async def set_id(ctx, steam_id: str):
+    """
+    Sets steam_id to discord id in the database
+    :param ctx: Context
+    :param steam_id: Steam ID
+    """
     author_id = str(ctx.author.id)
     steam_id = get_valid_steam_id(steam_id)
     if steam_id is None:
@@ -140,6 +167,11 @@ async def set_id(ctx, steam_id: str):
 
 @client.slash_command(name="getid", description="Get saved steam account")
 async def get_id(ctx):
+    """
+    Gets user's saved steam id and sends it as an embed
+    :param ctx: Context
+    """
+    # Legacy code
     # steam_id = query_steam_id(ctx.author.id)
     # if steam_id is None:
     #     await ctx.respond("Please use /setid to set your Steam ID!")
@@ -154,10 +186,15 @@ async def get_id(ctx):
 
 @has_permissions(administrator=True)
 @client.slash_command(name="setchannel")
-async def set_channel(ctx, channelid):
+async def set_channel(ctx, channel_id):
+    """
+    Sets global news channel
+    :param ctx:
+    :param channel_id: discord channel id
+    """
     global NEWS_CHANNEL
-    NEWS_CHANNEL = channelid
-    await ctx.respond(f"News channel has been set to {channelid}")
+    NEWS_CHANNEL = channel_id
+    await ctx.respond(f"News channel has been set to {channel_id}")
 
 
 def front_page_embed():
@@ -172,13 +209,18 @@ def front_page_embed():
     contents = []
     html_tags = re.compile(r'<[^>]+>')
     embed = discord.Embed(title=f"CSGO News", type='rich', color=0x0c0c28, url=front_page['url'].replace(" ", ""))
-    embed.add_field(name=front_page['title'], value=html_tags.sub('', articles[0]['contents']))
+    embed.add_field(name=front_page['title'], value=str(html_tags.sub('', articles[0]['contents']))[0:1020]+"...")
 
     return embed
 
 
 @client.slash_command(name="profile", description="Show the profile of a steam user.")
 async def profile(ctx, steam_id=""):
+    """
+    Sends user profile as an embed from given or saved steam id
+    :param ctx: Context
+    :param steam_id: Steam ID
+    """
     if (i := generate_profile_embed(steam_id, ctx.author.id)) is not None:
         await ctx.respond(embed=i)
     else:
@@ -186,6 +228,13 @@ async def profile(ctx, steam_id=""):
 
 
 def generate_profile_embed(steam_id, author):
+    """
+    Generates profile embed from steam id.
+    If steam id is not provided, author id is used to find a saved steam id
+    :param steam_id: Steam ID
+    :param author: Discord user id
+    :return: Embed of user profile. None if an error occurs
+    """
     if steam_id == "":
         steam_id = query_steam_id(author)
         if steam_id is None:
@@ -237,6 +286,11 @@ def generate_profile_embed(steam_id, author):
 
 
 def format_ban_text(ban_data):
+    """
+    Formats ban text from ban data gathered from the steam API
+    :param ban_data: Steam API ban data
+    :return: Bans formatted as a string
+    """
     ban_text = ""
     if ban_data['VACBanned']:
         ban_text += f"VAC Ban: ⚠️\n"
@@ -256,6 +310,10 @@ def format_ban_text(ban_data):
 
 @client.slash_command(name="help", description="Show every command and usage.")
 async def help_(ctx):
+    """
+    Sends a list of valid commands as an embed
+    :param ctx: Context
+    """
     embed = discord.Embed(title="Help Information", type="rich", color=0x0c0c28,
                           url="https://github.com/ahmetmutlugun/vapor")
 

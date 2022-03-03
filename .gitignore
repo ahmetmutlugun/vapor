@@ -103,3 +103,4 @@ cython_debug/
 keys/
 .key
 python3/
+test.py

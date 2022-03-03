@@ -13,6 +13,10 @@ autocomplete_item_list = []
 
 
 def set_autocomplete_items():
+    """
+    Creates a list of CS:GO items
+    :return: List of CS:GO items
+    """
     all_items = get_all_item_values()
 
     for i in all_items:
@@ -20,6 +24,11 @@ def set_autocomplete_items():
 
 
 async def get_items(ctx: discord.AutocompleteContext):
+    """
+    Autocompletes items from the autocomplete_item_list
+    :param ctx: Context
+    :return: list of matching items
+    """
     matching_items = []
     for item in autocomplete_item_list:
         item_list = ctx.value.lower().split(" ")
@@ -33,16 +42,25 @@ async def get_items(ctx: discord.AutocompleteContext):
 
 
 class Inventory(commands.Cog):
+    """
+    Discord Cog for item and inventory commands
+    """
     def __init__(self, client):
         """
         Cog for inventory and item price commands
-
         :param client: discord client
         """
         self.client = client
 
     @slash_command(name="inventory", description="Check total inventory price.")
     async def get_inventory(self, ctx, steam_id=""):
+        """
+        Send total inventory value and top items of a user to discord.
+        Checks if the steam id is valid, or uses the saved steam id
+        :param ctx: Context
+        :param steam_id: steam id of a steam user
+        :return: None if an error occurs
+        """
         if steam_id == "":  # If the user didn't enter a steam id
             user_id_response = exec_query("SELECT steam_id FROM steam_data WHERE discord_id=(%s)",
                                           (str(ctx.author.id),))
@@ -76,10 +94,17 @@ class Inventory(commands.Cog):
 
     @slash_command(name="item", description="Shows individual item prices.")
     async def item(self, ctx: discord.ApplicationContext, item: Option(str, "Pick an item:", autocomplete=get_items)):
+        """
+        Get price and stock data of a CS:GO item
+        :param ctx: Context
+        :param item: CS:GO item
+        :return: None if an error occurs
+        """
         single_quote = "\'"
+        item_url = f'http://csgobackpack.net/api/GetItemPrice/?currency=USD&id={str(item).replace(" ", "%20").replace("&#39", single_quote)}&time=7&icon=1'
         if item in autocomplete_item_list:
             r = requests.get(
-                f'http://csgobackpack.net/api/GetItemPrice/?currency=USD&id={str(item).replace(" ", "%20").replace("&#39", single_quote)}&time=7&icon=1',
+                item_url,
                 headers=headers)
 
             try:
@@ -87,7 +112,7 @@ class Inventory(commands.Cog):
 
                 embed = discord.Embed(title=f"{item}", type='rich',
                                       color=0x0c0c28,
-                                      url=f'https://steamcommunity.com/market/listings/730/{str(item).replace(" ", "%20").replace("&#39",single_quote)}')
+                                      url=item_url)
                 embed.add_field(name="Average Price:", value=f"${round(float(r.json()['average_price']), 2)}")
                 embed.add_field(name="Median Price:", value=f"${round(float(r.json()['median_price']), 2)}")
                 embed.add_field(name="Amount on sale:", value=r.json()['amount_sold'])

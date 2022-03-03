@@ -6,13 +6,16 @@ import os
 
 headers = {'Accept': 'application/json'}
 steam_key_file = open("keys/steam.key", "r")
-steam_key = steam_key_file.read()
+steam_key = steam_key_file.read().replace("\n", "")
 steam_key_file.close()
 
 all_item_prices = {}  # Cache item prices
 
 
 def set_all_item_prices():
+    """
+    Assigns items names to item prices in the dictionary all_item_prices
+    """
     items = get_all_item_values()  # has &#39
 
     for i in items:
@@ -32,6 +35,12 @@ def set_all_item_prices():
 
 
 def get_player_friends(steam_id):
+    """
+    Get a users friend list, and return as a dictionary with steam ids and friend date
+    Sorted by add date
+    :param steam_id: steam ID of a steam user
+    :return: list of friends. return none if steam profile is private
+    """
     r = requests.get(
         'http://api.steampowered.com/ISteamUser/GetFriendList/v0001/',
         headers=headers, params={'steamid': [steam_id], "key": steam_key, 'relationship': "friend"})
@@ -46,6 +55,11 @@ def get_player_friends(steam_id):
 
 
 def get_player_profile(steam_id):
+    """
+    Gets profile information of a steam user
+    :param steam_id: steam ID of a steam user
+    :return: Player Profile. None if an invalid steam ID is given
+    """
     r = requests.get(
         'http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/',
         headers=headers, params={'steamids': [steam_id], "key": steam_key})
@@ -55,7 +69,13 @@ def get_player_profile(steam_id):
         return None
 
 
-def get_valid_steam_id(steam_id):  # Check Steam ID validity or get Steam ID from custom url
+def get_valid_steam_id(steam_id):
+    """
+    Checks if a steam ID is valid and returns a valid steamid.
+    If a custom url is given, steam_id is returned
+    :param steam_id: steam ID of a steam user
+    :return: steam ID of a steam user
+    """
     if get_player_ban(steam_id) is not None:
         return steam_id
     steam_url = get_user_id(steam_id)
@@ -64,7 +84,12 @@ def get_valid_steam_id(steam_id):  # Check Steam ID validity or get Steam ID fro
     return None
 
 
-def get_user_id(name: str):  # Get Steam ID from custom url
+def get_user_id(name: str):
+    """
+    Gets user's steam id from vanity url
+    :param name: steam vanity url (custom url)
+    :return: steam id
+    """
     r = requests.get(
         f'http://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key={steam_key}&vanityurl={name}',
         headers=headers)
@@ -74,7 +99,12 @@ def get_user_id(name: str):  # Get Steam ID from custom url
         return None
 
 
-def get_player_ban(steam_id):  # Get ban infromation from Steam ID
+def get_player_ban(steam_id):
+    """
+    Get ban information from steam id
+    :param steam_id: steam id from a steam profile
+    :return: ban data in json format
+    """
     r = requests.get(
         ' http://api.steampowered.com/ISteamUser/GetPlayerBans/v1',
         params={"key": steam_key, "steamids": f"{steam_id}"},
@@ -86,6 +116,12 @@ def get_player_ban(steam_id):  # Get ban infromation from Steam ID
 
 
 def get_news(count: int = 1, appid: int = 730):
+    """
+    Get a number of app news
+    :param count: Number of news
+    :param appid: Steam ID app id
+    :return: returns news from the given appid
+    """
     r = requests.get(
         f' http://api.steampowered.com/ISteamNews/GetNewsForApp/v0002/?appid={appid}&count={count}&maxlength=30000&format=json',
         headers=headers)
@@ -95,6 +131,11 @@ def get_news(count: int = 1, appid: int = 730):
 
 # Please don't look at this mess...
 async def calc_inventory_value(assets):
+    """
+    Calculates the total CS:GO inventory value of a user, and returns the top 5 most valuable items in the inventory
+    :param assets: Assets of a steam inventory as returned by the steam api
+    :return: total value, top 5 items in a tuple
+    """
     single_quote = "\'"
     # Find number of item
     id_dictionary = {}
@@ -127,14 +168,23 @@ async def calc_inventory_value(assets):
 
 
 def get_all_item_values():
-    # Send a request to csgobackpack API to get all items
+    """
+    Gets the list of items and prices from CS:GO backpack.
+    :return: List of items and their prices
+    """
     r = requests.get(
         'http://csgobackpack.net/api/GetItemsList/v2/',
         headers=headers)
     return r.json()['items_list']
 
 
-def exec_query(query_string: str, params: tuple):
+def exec_query(query_string: str, params: tuple) -> object:
+    """
+    Queries Postgres SQL DB.
+    :param query_string: SQL query
+    :param params: Queried items
+    :return: results from the database
+    """
     # Establish a session with the postgres database
     with psycopg2.connect(
             host=os.environ["HOST"],
@@ -155,6 +205,11 @@ def exec_query(query_string: str, params: tuple):
 
 
 def query_steam_id(author_id):
+    """
+    Gets steam id from author id
+    :param author_id: discord id
+    :return: steam id
+    """
     user_id_response = exec_query("SELECT steam_id FROM steam_data WHERE discord_id=(%s)", (str(author_id),))
     if user_id_response:
         return user_id_response[0][0]

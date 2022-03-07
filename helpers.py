@@ -216,4 +216,16 @@ def query_steam_id(author_id):
     return
 
 
+def cs_status():
+    """
+    Get CS:GO Server Status
+    :return: API JSON
+    """
+    r = requests.get(url=f"https://api.steampowered.com/ICSGOServers_730/GetGameServersStatus/v1/?key={steam_key}",
+                     headers=headers)
+    if r.status_code == 200:
+        return r.json()
+    return None
+
+
 set_all_item_prices()

@@ -9,6 +9,8 @@ import discord
 from discord.ext import commands
 
 from discord.ext.commands import has_permissions
+
+import helpers
 from helpers import get_news, get_valid_steam_id, get_player_ban, exec_query, get_player_friends, get_player_profile, \
     query_steam_id, get_user_id
 from inventory import Inventory
@@ -28,6 +30,7 @@ class Vapor(commands.AutoShardedBot, ABC):
     """
     Custom AutoShardedBot to create loop commands
     """
+
     def __init__(self, *args, **kwargs):
         """
         Starts refresh_news
@@ -89,6 +92,30 @@ async def ping(ctx):
     await ctx.respond(f"My ping is: {round(client.latency * 1000)}ms")
 
 
+@client.slash_command(name='status', description="Displays CS:GO Server Status")
+async def cs_status(ctx):
+    """
+    Shows CS:GO server statuses in an embed
+    :param ctx: Context
+    """
+    data = helpers.cs_status()
+    if data is None:
+        await ctx.respond(f"There was an error getting the CS:GO server status. This may be caused by regular "
+                          f"maintenance on Tuesdays. Otherwise, Steam/CS:GO servers may be down. ")
+        return
+    embed = discord.Embed(title="CS:GO Status", type='rich', color=0x0c0c28, url="https://steamstat.us/")
+    embed.add_field(name="Last Updated", value=data['result']['app']['time'])
+    embed.add_field(name="Services", value=data['result']['services']['SessionsLogon'])
+    embed.add_field(name="Steam Community", value=data['result']['services']['SteamCommunity'])
+    embed.add_field(name="Matchmaking", value=data['result']['matchmaking']['scheduler'])
+    embed.add_field(name="Online Servers", value=data['result']['matchmaking']['online_servers'])
+    embed.add_field(name="Online Players", value=data['result']['matchmaking']['online_players'])
+    embed.add_field(name="Searching Players", value=data['result']['matchmaking']['searching_players'])
+    embed.add_field(name="Average Search Time", value=data['result']['matchmaking']['search_seconds_avg'])
+
+    await ctx.respond(embed=embed)
+
+
 @client.slash_command(name="csnews", guilds_ids=guilds, description="Show the latest CS:GO news.")
 async def cs_news(ctx):
     """
@@ -101,7 +128,7 @@ async def cs_news(ctx):
     html_tags = re.compile(r'<[^>]+>')
     for art in articles:
         # Create the embed for each page; 1 per article
-        embed = discord.Embed(title="CSGO News", type='rich', color=0x0c0c28, url=art['url'].replace(" ", ""))
+        embed = discord.Embed(title="CS:GO News", type='rich', color=0x0c0c28, url=art['url'].replace(" ", ""))
         embed.add_field(name=art['title'], value=html_tags.sub('', art['contents']))
         contents.append(embed)
     pages = 5
@@ -209,7 +236,7 @@ def front_page_embed():
     contents = []
     html_tags = re.compile(r'<[^>]+>')
     embed = discord.Embed(title=f"CSGO News", type='rich', color=0x0c0c28, url=front_page['url'].replace(" ", ""))
-    embed.add_field(name=front_page['title'], value=str(html_tags.sub('', articles[0]['contents']))[0:1020]+"...")
+    embed.add_field(name=front_page['title'], value=str(html_tags.sub('', articles[0]['contents']))[0:1020] + "...")
 
     return embed
 

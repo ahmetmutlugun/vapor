@@ -45,6 +45,7 @@ class Vapor(commands.AutoShardedBot, ABC):
 
     @tasks.loop(minutes=30)
     async def refresh_news(self):
+        helpers.set_all_item_prices()
         """
         Checks for new news every 30 minutes, and sends them to the news channel.
         """
@@ -98,7 +99,7 @@ async def cs_status(ctx):
     Shows CS:GO server statuses in an embed
     :param ctx: Context
     """
-    data = helpers.cs_status()
+    data = await helpers.cs_status()
     if data is None:
         await ctx.respond(f"There was an error getting the CS:GO server status. This may be caused by regular "
                           f"maintenance on Tuesdays. Otherwise, Steam/CS:GO servers may be down. ")

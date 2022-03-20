@@ -216,7 +216,7 @@ def query_steam_id(author_id):
     return
 
 
-def cs_status():
+async def cs_status():
     """
     Get CS:GO Server Status
     :return: API JSON

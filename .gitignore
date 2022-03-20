@@ -104,3 +104,5 @@ keys/
 .key
 python3/
 test.py
+news.json
+.DS_Store

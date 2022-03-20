@@ -1,6 +1,0 @@
-1. Setup first postgresql container in Docker
-2. Mount pgdata volume to container in Docker
-3. Run psql in first pg cont and create "steam_data" database
-4. Run docker-compose up
-5. Stop first pg cont
-6. Remove first pg cont

@@ -22,7 +22,7 @@ from inventory import Inventory
 logging.basicConfig(level=logging.INFO)
 logging.info("Running Script...")
 # client = commands.AutoShardedBot(description="Bringing Steam features as a Discord bot.")
-NEWS_CHANNEL = 891028959041585162
+NEWS_CHANNEL = 825110522922926144
 guilds = []
 
 
@@ -42,32 +42,27 @@ class Vapor(commands.AutoShardedBot, ABC):
         # Start the task to run in the background
         self.refresh_news.start()
         self.client = self
+        self.current_news = get_news()[0]
 
-    @tasks.loop(minutes=30)
+    @tasks.loop(minutes=15)
     async def refresh_news(self):
         helpers.set_all_item_prices()
+
         """
         Checks for new news every 30 minutes, and sends them to the news channel.
         """
         await self.wait_until_ready()
         channel = self.get_channel(891028959041585162)
         # Read existing articles from news.json
-        with open('news.json', 'r') as json_file:
-            try:
-                old_news = json.dumps(json.load(json_file), sort_keys=True)
-            except Exception:  # Too broad
-                old_news = ""
+        old_news = self.current_news
 
         # Send request to news API
-        updated_news = json.dumps(get_news(), sort_keys=True)
+        updated_news = get_news()[0]
 
         # If the old news isn't the same as the new news update the news.json file
-
-        if old_news != updated_news:
-            with open('news.json', 'w') as outfile:
-                outfile.write(updated_news)
-
-        await channel.send(embed=front_page_embed())
+        if str(old_news) != str(updated_news):
+            self.current_news = updated_news
+            await channel.send(embed=front_page_embed(updated_news))
 
 
 client = Vapor(description="Bringing Steam features as a Discord bot.")
@@ -123,14 +118,13 @@ async def cs_news(ctx):
     Get the news from the news.json file which is updated every hour
     :param ctx: Context
     """
-    with open('news.json', 'r') as f:
-        articles = json.load(f)
+    articles = get_news()
     contents = []
     html_tags = re.compile(r'<[^>]+>')
     for art in articles:
         # Create the embed for each page; 1 per article
         embed = discord.Embed(title="CS:GO News", type='rich', color=0x0c0c28, url=art['url'].replace(" ", ""))
-        embed.add_field(name=art['title'], value=html_tags.sub('', art['contents']))
+        embed.add_field(name=art['title'], value=html_tags.sub('', art['contents'])[0:1020])
         contents.append(embed)
     pages = 5
     cur_page = 1
@@ -225,19 +219,15 @@ async def set_channel(ctx, channel_id):
     await ctx.respond(f"News channel has been set to {channel_id}")
 
 
-def front_page_embed():
+def front_page_embed(news):
     """
     Creates an embed of the front page of the news
     :return: the Discord Embed
     """
-    with open('news.json', 'r') as f:
-        articles = json.load(f)
 
-    front_page = articles[0]
-    contents = []
     html_tags = re.compile(r'<[^>]+>')
-    embed = discord.Embed(title=f"CSGO News", type='rich', color=0x0c0c28, url=front_page['url'].replace(" ", ""))
-    embed.add_field(name=front_page['title'], value=str(html_tags.sub('', articles[0]['contents']))[0:1020] + "...")
+    embed = discord.Embed(title=f"CSGO News", type='rich', color=0x0c0c28, url=news['url'].replace(" ", ""))
+    embed.add_field(name=news['title'], value=str(html_tags.sub('', news['contents']))[0:1020] + "...")
 
     return embed
 

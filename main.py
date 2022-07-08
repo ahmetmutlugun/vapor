@@ -28,7 +28,7 @@ NEWS_CHANNEL = 825110522922926144
 guilds = []
 
 file = open("keys/faceit.key", "r")
-faceit_key = file.read()
+faceit_key = file.read().replace('\n','')
 file.close()
 
 

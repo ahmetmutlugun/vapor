@@ -4,6 +4,8 @@ import logging
 import re
 from abc import ABC
 
+import requests
+from discord import Option
 from discord.ext import tasks
 import discord
 from discord.ext import commands
@@ -24,6 +26,10 @@ logging.info("Running Script...")
 # client = commands.AutoShardedBot(description="Bringing Steam features as a Discord bot.")
 NEWS_CHANNEL = 825110522922926144
 guilds = []
+
+file = open("keys/faceit.key", "r")
+faceit_key = file.read()
+file.close()
 
 
 class Vapor(commands.AutoShardedBot, ABC):
@@ -204,6 +210,24 @@ async def get_id(ctx):
         await ctx.respond(embed=i)
     else:
         await ctx.respond("Please use /setid to set your Steam ID!")
+
+
+@client.slash_command(name="faceit")
+async def faceit(ctx, username):
+    if username is None:
+        await ctx.respond("Please enter a username!")
+        return None
+    r = requests.get(f"https://open.faceit.com/data/v4/players?nickname={username}",
+                     headers={'Accept': 'application/json', "Authorization": f"Bearer {faceit_key}"})
+    print(r.json()['games']['csgo'])
+
+    embed = discord.Embed(title=f"Face It Profile for {username}", type='rich', color=0x0c0c28,
+                          url=r.json()['faceit_url'])
+    embed.set_thumbnail(url=r.json()['avatar'])
+    embed.add_field(name="CS:GO Elo", value=r.json()['games']['csgo']['faceit_elo'])
+    embed.add_field(name="CS:GO Level", value=r.json()['games']['csgo']['skill_level'])
+
+    await ctx.respond(embed=embed)
 
 
 @has_permissions(administrator=True)

@@ -1,11 +1,13 @@
 import logging
+import time
+
 import psycopg2
 import requests
 import json
 import os
 
 headers = {'Accept': 'application/json'}
-steam_key_file = open("keys/steam.key", "r")
+steam_key_file = open(os.getcwd() + "/keys/steam.key", "r")
 steam_key = steam_key_file.read().replace("\n", "")
 steam_key_file.close()
 
@@ -16,6 +18,7 @@ def set_all_item_prices():
     """
     Assigns items names to item prices in the dictionary all_item_prices
     """
+
     items = get_all_item_values()  # has &#39
 
     for i in items:
@@ -41,12 +44,10 @@ def get_player_friends(steam_id):
     :param steam_id: steam ID of a steam user
     :return: list of friends. return none if steam profile is private
     """
-    r = requests.get(
-        'http://api.steampowered.com/ISteamUser/GetFriendList/v0001/',
-        headers=headers, params={'steamid': [steam_id], "key": steam_key, 'relationship': "friend"})
+    data = api_request('http://api.steampowered.com/ISteamUser/GetFriendList/v0001/', parameters={'steamid': [steam_id], "key": steam_key, 'relationship': "friend"})
     friends = {}
     try:
-        for i in r.json()['friendslist']['friends']:
+        for i in data['friendslist']['friends']:
             friends.update({i['steamid']: i['friend_since']})
         friends = dict(sorted(friends.items(), key=lambda x: x[1]))
     except KeyError:
@@ -60,11 +61,9 @@ def get_player_profile(steam_id):
     :param steam_id: steam ID of a steam user
     :return: Player Profile. None if an invalid steam ID is given
     """
-    r = requests.get(
-        'http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/',
-        headers=headers, params={'steamids': [steam_id], "key": steam_key})
+    data = api_request('http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/', parameters={'steamids': [steam_id], "key": steam_key})
     try:
-        return r.json()['response']['players'][0]
+        return data['response']['players'][0]
     except KeyError:
         return None
 
@@ -90,11 +89,9 @@ def get_user_id(name: str):
     :param name: steam vanity url (custom url)
     :return: steam id
     """
-    r = requests.get(
-        f'http://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key={steam_key}&vanityurl={name}',
-        headers=headers)
+    data = api_request(f'http://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key={steam_key}&vanityurl={name}')
     try:
-        return r.json()['response']['steamid']
+        return data['response']['steamid']
     except KeyError:
         return None
 
@@ -105,11 +102,7 @@ def get_player_ban(steam_id):
     :param steam_id: steam id from a steam profile
     :return: ban data in json format
     """
-    r = requests.get(
-        ' http://api.steampowered.com/ISteamUser/GetPlayerBans/v1',
-        params={"key": steam_key, "steamids": f"{steam_id}"},
-        headers=headers)
-    data = r.json()
+    data = api_request('http://api.steampowered.com/ISteamUser/GetPlayerBans/v1', parameters={"key": steam_key, "steamids": f"{steam_id}"})
     if len(data['players']) < 1:
         return None
     return data["players"][0]
@@ -122,11 +115,9 @@ def get_news(count: int = 1, appid: int = 730):
     :param appid: Steam ID app id
     :return: returns news from the given appid
     """
-    r = requests.get(
-        f' http://api.steampowered.com/ISteamNews/GetNewsForApp/v0002/?appid={appid}&count={count}&maxlength=30000&format=json',
-        headers=headers)
-    data = r.json()
-    return data['appnews']['newsitems']
+    return api_request(
+        f' http://api.steampowered.com/ISteamNews/GetNewsForApp/v0002/?appid={appid}&count={count}&maxlength=30000&format=json')[
+        'appnews']['newsitems']
 
 
 # Please don't look at this mess...
@@ -172,10 +163,7 @@ def get_all_item_values():
     Gets the list of items and prices from CS:GO backpack.
     :return: List of items and their prices
     """
-    r = requests.get(
-        'http://csgobackpack.net/api/GetItemsList/v2/',
-        headers=headers)
-    return r.json()['items_list']
+    return api_request('http://csgobackpack.net/api/GetItemsList/v2/')['items_list']
 
 
 def exec_query(query_string: str, params: tuple) -> object:
@@ -213,7 +201,7 @@ def query_steam_id(author_id):
     user_id_response = exec_query("SELECT steam_id FROM steam_data WHERE discord_id=(%s)", (str(author_id),))
     if user_id_response:
         return user_id_response[0][0]
-    return
+    return None
 
 
 async def cs_status():
@@ -221,11 +209,12 @@ async def cs_status():
     Get CS:GO Server Status
     :return: API JSON
     """
-    r = requests.get(url=f"https://api.steampowered.com/ICSGOServers_730/GetGameServersStatus/v1/?key={steam_key}",
-                     headers=headers)
+    return api_request(f"https://api.steampowered.com/ICSGOServers_730/GetGameServersStatus/v1/?key={steam_key}")
+
+
+def api_request(req_url: str, parameters=None):
+    r = requests.get(url=req_url,
+                     headers={'Accept': 'application/json'}, params=parameters)
     if r.status_code == 200:
         return r.json()
     return None
-
-
-set_all_item_prices()

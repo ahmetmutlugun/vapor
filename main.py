@@ -1,21 +1,20 @@
 import asyncio
-import json
 import logging
 import re
 from abc import ABC
 
 import requests
-from discord import Option
 from discord.ext import tasks
 import discord
 from discord.ext import commands
 
 from discord.ext.commands import has_permissions
 
-import helpers
-from helpers import get_news, get_valid_steam_id, get_player_ban, exec_query, get_player_friends, get_player_profile, \
+from cogs import helpers
+from cogs.helpers import get_news, get_valid_steam_id, get_player_ban, exec_query, get_player_friends, get_player_profile, \
     query_steam_id, get_user_id
-from inventory import Inventory
+from cogs.inventory import Inventory
+from cogs.tools import Tools
 
 # TODO
 # Respond with the linked profile to /getid and /setid
@@ -24,7 +23,7 @@ from inventory import Inventory
 logging.basicConfig(level=logging.INFO)
 logging.info("Running Script...")
 # client = commands.AutoShardedBot(description="Bringing Steam features as a Discord bot.")
-NEWS_CHANNEL = 825110522922926144
+NEWS_CHANNEL = 891028959041585162
 guilds = []
 
 file = open("keys/faceit.key", "r")
@@ -49,13 +48,27 @@ class Vapor(commands.AutoShardedBot, ABC):
         self.refresh_news.start()
         self.client = self
         self.current_news = get_news()[0]
+        self.previous_status = True
 
-    @tasks.loop(minutes=15)
+    @tasks.loop(minutes=5)
     async def refresh_news(self):
+        steam_status = await helpers.cs_status()
+
+        if steam_status['result']['services']['SessionsLogon'] != "normal" and self.previous_status:
+            self.previous_status = False
+            await self.wait_until_ready()
+            channel = self.get_channel(891028959041585162)
+            await channel.send("Steam services are down!")
+        elif steam_status['result']['services']['SessionsLogon'] == "normal" and not self.previous_status:
+            self.previous_status = True
+            await self.wait_until_ready()
+            channel = self.get_channel(891028959041585162)
+            await channel.send("Steam services is back up.")
+
         helpers.set_all_item_prices()
 
         """
-        Checks for new news every 30 minutes, and sends them to the news channel.
+        Checks for new news every 15 minutes, and sends them to the news channel.
         """
         await self.wait_until_ready()
         channel = self.get_channel(891028959041585162)
@@ -113,7 +126,7 @@ async def cs_status(ctx):
     embed.add_field(name="Online Servers", value=data['result']['matchmaking']['online_servers'])
     embed.add_field(name="Online Players", value=data['result']['matchmaking']['online_players'])
     embed.add_field(name="Searching Players", value=data['result']['matchmaking']['searching_players'])
-    embed.add_field(name="Average Search Time", value=data['result']['matchmaking']['search_seconds_avg'])
+    embed.add_field(name="Average Search Time", value=data['result']['matchmaking']['search_seconds_avg'] + " seconds")
 
     await ctx.respond(embed=embed)
 
@@ -219,7 +232,6 @@ async def faceit(ctx, username):
         return None
     r = requests.get(f"https://open.faceit.com/data/v4/players?nickname={username}",
                      headers={'Accept': 'application/json', "Authorization": f"Bearer {faceit_key}"})
-    print(r.json()['games']['csgo'])
 
     embed = discord.Embed(title=f"Face It Profile for {username}", type='rich', color=0x0c0c28,
                           url=r.json()['faceit_url'])
@@ -350,27 +362,9 @@ def format_ban_text(ban_data):
     return ban_text
 
 
-@client.slash_command(name="help", description="Show every command and usage.")
-async def help_(ctx):
-    """
-    Sends a list of valid commands as an embed
-    :param ctx: Context
-    """
-    embed = discord.Embed(title="Help Information", type="rich", color=0x0c0c28,
-                          url="https://github.com/ahmetmutlugun/vapor")
-
-    embed.add_field(name="/ping", value="Displays the bot's ping.")
-    embed.add_field(name="/getid", value="Shows the linked steam account.")
-    embed.add_field(name="/setid", value="Links steam account.")
-    embed.add_field(name="/profile", value="Displays profile and ban information.")
-    embed.add_field(name="/inventory", value="Calculate CS:GO inventory value.")
-    embed.add_field(name="/item", value="Shows the price of the selected item.")
-    embed.add_field(name="/csnews", value="Shows the latest CS:GO news.")
-    await ctx.respond(embed=embed)
-
-
 file = open("keys/discord.key", "r")
 token = file.read()
 file.close()
 client.add_cog(Inventory(client))
+client.add_cog(Tools(client))
 client.run(token)

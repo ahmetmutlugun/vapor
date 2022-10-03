@@ -1,4 +1,5 @@
 import logging
+import time
 
 from discord.commands import \
     slash_command, Option
@@ -6,21 +7,21 @@ from discord.commands import \
 from discord.ext import commands
 import discord
 import requests
-from helpers import get_all_item_values, exec_query, calc_inventory_value, get_valid_steam_id, headers, \
+from cogs.helpers import get_all_item_values, exec_query, calc_inventory_value, get_valid_steam_id, headers, \
     get_player_profile
 
 autocomplete_item_list = []
 
 
-def set_autocomplete_items():
+def set_autocomplete_items(autocomplete_items=None):
     """
     Creates a list of CS:GO items
     :return: List of CS:GO items
     """
-    all_items = get_all_item_values()
 
-    for i in all_items:
-        autocomplete_item_list.append(i.replace("&#39","\'"))
+    all_items = get_all_item_values()
+    all_items = requests.get("https://api.steamapis.com/image/items/730")
+    autocomplete_items += all_items.json().keys()
 
 
 async def get_items(ctx: discord.AutocompleteContext):
@@ -45,6 +46,7 @@ class Inventory(commands.Cog):
     """
     Discord Cog for item and inventory commands
     """
+
     def __init__(self, client):
         """
         Cog for inventory and item price commands
@@ -101,7 +103,7 @@ class Inventory(commands.Cog):
         :return: None if an error occurs
         """
         single_quote = "\'"
-        item_url = f'http://csgobackpack.net/api/GetItemPrice/?currency=USD&id={str(item).replace(" ", "%20").replace("&#39", single_quote)}&time=7&icon=1'
+        item_url = f'https://csgobackpack.net/api/GetItemPrice/?currency=USD&id={str(item).replace(" ", "%20").replace("&#39", single_quote)}&time=7&icon=1'
         if item in autocomplete_item_list:
             r = requests.get(
                 item_url,
@@ -120,9 +122,8 @@ class Inventory(commands.Cog):
                 await ctx.respond(embed=embed)
             except KeyError:
                 await ctx.respond(f"Could not find a price for {item}!")
-                logging.error(f'https://steamcommunity.com/market/listings/730/{str(item).replace(" ", "%20")}')
             return
         await ctx.respond("Please choose an item from the auto complete list.")
 
 
-set_autocomplete_items()
+set_autocomplete_items(autocomplete_item_list)

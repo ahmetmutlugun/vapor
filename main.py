@@ -11,10 +11,12 @@ from discord.ext import commands
 from discord.ext.commands import has_permissions
 
 from cogs import helpers
-from cogs.helpers import get_news, get_valid_steam_id, get_player_ban, exec_query, get_player_friends, get_player_profile, \
+from cogs.helpers import get_news, get_valid_steam_id, get_player_ban, exec_query, get_player_friends, \
+    get_player_profile, \
     query_steam_id, get_user_id
 from cogs.inventory import Inventory
 from cogs.tools import Tools
+from cogs import firebase
 
 # TODO
 # Respond with the linked profile to /getid and /setid
@@ -27,7 +29,7 @@ NEWS_CHANNEL = 891028959041585162
 guilds = []
 
 file = open("keys/faceit.key", "r")
-faceit_key = file.read().replace('\n','')
+faceit_key = file.read().replace('\n', '')
 file.close()
 
 
@@ -46,30 +48,19 @@ class Vapor(commands.AutoShardedBot, ABC):
 
         # Start the task to run in the background
         self.refresh_news.start()
+        self.refresh_status.start()
         self.client = self
         self.current_news = get_news()[0]
         self.previous_status = True
 
-    @tasks.loop(minutes=5)
+    @tasks.loop(minutes=15)
     async def refresh_news(self):
-        steam_status = await helpers.cs_status()
-
-        if steam_status['result']['services']['SessionsLogon'] != "normal" and self.previous_status:
-            self.previous_status = False
-            await self.wait_until_ready()
-            channel = self.get_channel(891028959041585162)
-            await channel.send("Steam services are down!")
-        elif steam_status['result']['services']['SessionsLogon'] == "normal" and not self.previous_status:
-            self.previous_status = True
-            await self.wait_until_ready()
-            channel = self.get_channel(891028959041585162)
-            await channel.send("Steam services is back up.")
-
-        helpers.set_all_item_prices()
-
         """
         Checks for new news every 15 minutes, and sends them to the news channel.
         """
+
+        helpers.set_all_item_prices()
+
         await self.wait_until_ready()
         channel = self.get_channel(891028959041585162)
         # Read existing articles from news.json
@@ -82,6 +73,21 @@ class Vapor(commands.AutoShardedBot, ABC):
         if str(old_news) != str(updated_news):
             self.current_news = updated_news
             await channel.send(embed=front_page_embed(updated_news))
+
+    @tasks.loop(minutes=3)
+    async def refresh_status(self):
+        steam_status = await helpers.cs_status()
+
+        if steam_status['result']['services']['SessionsLogon'] != "normal" and self.previous_status:
+            self.previous_status = False
+            await self.wait_until_ready()
+            channel = self.get_channel(891028959041585162)
+            await channel.send("Steam services are down!")
+        elif steam_status['result']['services']['SessionsLogon'] == "normal" and not self.previous_status:
+            self.previous_status = True
+            await self.wait_until_ready()
+            channel = self.get_channel(891028959041585162)
+            await channel.send("Steam services is back up.")
 
 
 client = Vapor(description="Bringing Steam features as a Discord bot.")
@@ -96,6 +102,15 @@ async def on_ready():
     logging.info(f"Logged in as {client.user} (Discord ID: {client.user.id})")
     for guild in client.guilds:
         guilds.append(guild)
+
+
+@client.slash_command(name="channel",
+                      description="Set news and notifications channel. Can only be used by administrators.")
+@has_permissions(administrator=True)
+async def set_channel(ctx, channel: discord.TextChannel):
+    print(ctx.guild.id)
+    firebase.set_guild(guild_id=ctx.guild.id, channel_id=channel.id)
+    await ctx.respond(f"News channel set to #{channel.name}")
 
 
 @client.slash_command(name='ping', description="Displays latency.")
@@ -242,19 +257,6 @@ async def faceit(ctx, username):
     await ctx.respond(embed=embed)
 
 
-@has_permissions(administrator=True)
-@client.slash_command(name="setchannel")
-async def set_channel(ctx, channel_id):
-    """
-    Sets global news channel
-    :param ctx:
-    :param channel_id: discord channel id
-    """
-    global NEWS_CHANNEL
-    NEWS_CHANNEL = channel_id
-    await ctx.respond(f"News channel has been set to {channel_id}")
-
-
 def front_page_embed(news):
     """
     Creates an embed of the front page of the news
@@ -278,7 +280,7 @@ async def profile(ctx, steam_id=""):
     if (i := generate_profile_embed(steam_id, ctx.author.id)) is not None:
         await ctx.respond(embed=i)
     else:
-        await ctx.respond("Please provide a Steam ID or use /setid.")
+        await ctx.respond("Please provide a valid Steam ID or use /setid.")
 
 
 def generate_profile_embed(steam_id, author):
@@ -297,12 +299,13 @@ def generate_profile_embed(steam_id, author):
     if possible_id is not None:
         steam_id = possible_id
 
-    ban_data = get_player_ban(steam_id)
     data = get_player_profile(steam_id)
-    friends = get_player_friends(steam_id)
-
     if data is None:
         return None
+
+    ban_data = get_player_ban(steam_id)
+    friends = get_player_friends(steam_id)
+
     embed = discord.Embed(title=f"Profile of {data['personaname']}", type='rich',
                           color=0x0c0c28, url=data['profileurl'])
 
@@ -317,11 +320,11 @@ def generate_profile_embed(steam_id, author):
                 friend = get_player_profile(i)
                 friend_text += f"{friend['personaname']}, <t:{friends[i]}:D>\n"
             if len(friend_text) > 3:
-                embed.add_field(name="Friends, Friends Since", value=friend_text)
+                embed.add_field(name="Oldest Friends", value=friend_text)
         except KeyError:
-            embed.add_field(name="Friends, Friends Since", value="Friend list is private!")
+            embed.add_field(name="Friends", value="Friend list is private!")
     else:
-        embed.add_field(name="Friends, Friends Since", value="Friend list is private!")
+        embed.add_field(name="Friends", value="Friend list is private!")
 
     try:
         embed.add_field(name="Last Online", value=f"<t:{data['lastlogoff']}:f>")
@@ -348,8 +351,10 @@ def format_ban_text(ban_data):
     ban_text = ""
     if ban_data['VACBanned']:
         ban_text += f"VAC Ban: ⚠️\n"
-    if int(ban_data['DaysSinceLastBan']) > 0:
-        ban_text += f"Days since last ban: {ban_data['DaysSinceLastBan']}"
+    if (days := int(ban_data['DaysSinceLastBan'])) > 0:
+        ban_text += f"Days since last ban: {days}"
+        if days % 365 == 0:
+            ban_text += f" Happy VacDay! It has been {days / 365} years since your ban."
     if ban_data['EconomyBan'] != "none":
         ban_text += f"Economy Ban: ⚠️"
     if ban_data['CommunityBanned']:

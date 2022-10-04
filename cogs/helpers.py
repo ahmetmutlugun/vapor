@@ -44,7 +44,8 @@ def get_player_friends(steam_id):
     :param steam_id: steam ID of a steam user
     :return: list of friends. return none if steam profile is private
     """
-    data = api_request('http://api.steampowered.com/ISteamUser/GetFriendList/v0001/', parameters={'steamid': [steam_id], "key": steam_key, 'relationship': "friend"})
+    data = api_request('http://api.steampowered.com/ISteamUser/GetFriendList/v0001/',
+                       parameters={'steamid': [steam_id], "key": steam_key, 'relationship': "friend"})
     friends = {}
     try:
         for i in data['friendslist']['friends']:
@@ -61,10 +62,11 @@ def get_player_profile(steam_id):
     :param steam_id: steam ID of a steam user
     :return: Player Profile. None if an invalid steam ID is given
     """
-    data = api_request('http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/', parameters={'steamids': [steam_id], "key": steam_key})
+    data = api_request('http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/',
+                       parameters={'steamids': [steam_id], "key": steam_key})
     try:
         return data['response']['players'][0]
-    except KeyError:
+    except (KeyError, IndexError):
         return None
 
 
@@ -89,7 +91,8 @@ def get_user_id(name: str):
     :param name: steam vanity url (custom url)
     :return: steam id
     """
-    data = api_request(f'http://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key={steam_key}&vanityurl={name}')
+    data = api_request(
+        f'http://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key={steam_key}&vanityurl={name}')
     try:
         return data['response']['steamid']
     except KeyError:
@@ -102,7 +105,8 @@ def get_player_ban(steam_id):
     :param steam_id: steam id from a steam profile
     :return: ban data in json format
     """
-    data = api_request('http://api.steampowered.com/ISteamUser/GetPlayerBans/v1', parameters={"key": steam_key, "steamids": f"{steam_id}"})
+    data = api_request('http://api.steampowered.com/ISteamUser/GetPlayerBans/v1',
+                       parameters={"key": steam_key, "steamids": f"{steam_id}"})
     if len(data['players']) < 1:
         return None
     return data["players"][0]

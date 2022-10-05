@@ -11,9 +11,9 @@ from discord.ext import commands
 from discord.ext.commands import has_permissions
 
 from cogs import helpers
-from cogs.helpers import get_news, get_valid_steam_id, get_player_ban, exec_query, get_player_friends, \
+from cogs.helpers import get_news, get_valid_steam_id, get_player_ban, get_player_friends, \
     get_player_profile, \
-    query_steam_id, get_user_id
+    get_user_id
 from cogs.inventory import Inventory
 from cogs.tools import Tools
 from cogs import firebase
@@ -205,18 +205,11 @@ async def set_id(ctx, steam_id: str):
     :param ctx: Context
     :param steam_id: Steam ID
     """
-    author_id = str(ctx.author.id)
     steam_id = get_valid_steam_id(steam_id)
     if steam_id is None:
         await ctx.respond("Please use a valid steam ID or custom url.")
         return
-    res = exec_query("SELECT * FROM steam_data WHERE discord_id=(%s)", (author_id,))
-    # If a row doesn't exist for a user insert into the table
-    if not res:
-        exec_query("INSERT INTO steam_data (discord_id, steam_id) VALUES (%s, %s)", (author_id, steam_id))
-    # If a row does exist for a user update the steam_id for the discord user
-    else:
-        exec_query("UPDATE steam_data SET steam_id=(%s) WHERE discord_id=(%s)", (steam_id, author_id))
+    firebase.set_steam_id(ctx.author.id, steam_id)
 
     await ctx.respond(f"Steam Account {steam_id} successfully linked!")
 
@@ -227,14 +220,12 @@ async def get_id(ctx):
     Gets user's saved steam id and sends it as an embed
     :param ctx: Context
     """
-    # Legacy code
-    # steam_id = query_steam_id(ctx.author.id)
-    # if steam_id is None:
-    #     await ctx.respond("Please use /setid to set your Steam ID!")
-    #     return
-    # await ctx.respond(f"Your steam ID is: {steam_id}")
+    steam_id = firebase.get_steam_id(ctx.author.id)
+    if steam_id is None:
+        await ctx.respond("Please use /setid to set your Steam ID!")
+        return
 
-    if (i := generate_profile_embed(query_steam_id(ctx.author.id), ctx.author.id)) is not None:
+    if (i := generate_profile_embed(steam_id, ctx.author.id)) is not None:
         await ctx.respond(embed=i)
     else:
         await ctx.respond("Please use /setid to set your Steam ID!")
@@ -292,7 +283,7 @@ def generate_profile_embed(steam_id, author):
     :return: Embed of user profile. None if an error occurs
     """
     if steam_id == "":
-        steam_id = query_steam_id(author)
+        steam_id = firebase.get_steam_id(author)
         if steam_id is None:
             return None
     possible_id = get_user_id(steam_id)

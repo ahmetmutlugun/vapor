@@ -7,7 +7,9 @@ from discord.commands import \
 from discord.ext import commands
 import discord
 import requests
-from cogs.helpers import get_all_item_values, exec_query, calc_inventory_value, get_valid_steam_id, headers, \
+
+from cogs import firebase
+from cogs.helpers import get_all_item_values, calc_inventory_value, get_valid_steam_id, headers, \
     get_player_profile
 
 autocomplete_item_list = []
@@ -64,11 +66,8 @@ class Inventory(commands.Cog):
         :return: None if an error occurs
         """
         if steam_id == "":  # If the user didn't enter a steam id
-            user_id_response = exec_query("SELECT steam_id FROM steam_data WHERE discord_id=(%s)",
-                                          (str(ctx.author.id),))
-            if user_id_response:
-                steam_id = user_id_response[0][0]
-            else:
+            steam_id = firebase.get_steam_id(ctx.author.id)
+            if steam_id is None:
                 await ctx.respond("Please enter a Steam ID or set a steam ID with /setid")
                 return
         else:

@@ -170,44 +170,6 @@ def get_all_item_values():
     return api_request('http://csgobackpack.net/api/GetItemsList/v2/')['items_list']
 
 
-def exec_query(query_string: str, params: tuple) -> object:
-    """
-    Queries Postgres SQL DB.
-    :param query_string: SQL query
-    :param params: Queried items
-    :return: results from the database
-    """
-    # Establish a session with the postgres database
-    with psycopg2.connect(
-            host=os.environ["HOST"],
-            database=os.environ["POSTGRES_DB"],
-            user=os.environ["POSTGRES_USER"],
-            password=os.environ["POSTGRES_PASSWORD"]
-    ) as conn:
-        # Create a cursor
-        with conn.cursor() as cur:
-            # Execute query with parameters
-            cur.execute(query_string, params)
-            try:
-                res = cur.fetchall()
-            except psycopg2.ProgrammingError:
-                res = []
-    # Return all the results
-    return res
-
-
-def query_steam_id(author_id):
-    """
-    Gets steam id from author id
-    :param author_id: discord id
-    :return: steam id
-    """
-    user_id_response = exec_query("SELECT steam_id FROM steam_data WHERE discord_id=(%s)", (str(author_id),))
-    if user_id_response:
-        return user_id_response[0][0]
-    return None
-
-
 async def cs_status():
     """
     Get CS:GO Server Status

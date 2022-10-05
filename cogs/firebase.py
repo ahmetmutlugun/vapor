@@ -12,14 +12,31 @@ firebase_admin.initialize_app(cred, {
     'databaseURL': 'https://vapor-d332f-default-rtdb.firebaseio.com/'
 })
 
-# As an admin, the app has access to read and write all data, regradless of Security Rules
-ref = db.reference(f"Users/307946608149135361")
-ref.update({"steam_id": "76561198342056792"})
 
-ref = db.reference(f"Guilds/853516997747933225")
-ref.update({"news_channel": "891028959041585162"})
+# As an admin, the app has access to read and write all data, regradless of Security Rules
 
 
 def set_guild(guild_id, channel_id):
     ref = db.reference(f"Guilds/{guild_id}")
     ref.update({"news_channel": channel_id})
+
+
+def get_news_channel(guild_id):
+    ref = db.reference(f"Guilds/{guild_id}/")
+    channel = ref.get("news_channel")
+    if channel is not None:
+        return channel[0]["news_channel"]
+    return channel
+
+
+def set_steam_id(discord_id, steam_id):
+    ref = db.reference(f"Users/{discord_id}")
+    ref.update({"steam_id": steam_id})
+
+
+def get_steam_id(discord_id):
+    ref = db.reference(f"Users/{discord_id}")
+    steam_id = ref.get("steam_id")
+    if steam_id is not None:
+        return steam_id[0]["steam_id"]
+    return steam_id

@@ -62,7 +62,9 @@ class Vapor(commands.AutoShardedBot, ABC):
         helpers.set_all_item_prices()
 
         await self.wait_until_ready()
-        channel = self.get_channel(891028959041585162)
+
+        channels = firebase.get_all_channels()
+
         # Read existing articles from news.json
         old_news = self.current_news
 
@@ -72,22 +74,29 @@ class Vapor(commands.AutoShardedBot, ABC):
         # If the old news isn't the same as the new news update the news.json file
         if str(old_news) != str(updated_news):
             self.current_news = updated_news
-            await channel.send(embed=front_page_embed(updated_news))
+            for i in channels:
+                channel = self.get_channel(i)
+                await channel.send(embed=front_page_embed(updated_news))
 
     @tasks.loop(minutes=3)
     async def refresh_status(self):
+        await self.wait_until_ready()
         steam_status = await helpers.cs_status()
 
         if steam_status['result']['services']['SessionsLogon'] != "normal" and self.previous_status:
             self.previous_status = False
-            await self.wait_until_ready()
-            channel = self.get_channel(891028959041585162)
-            await channel.send("Steam services are down!")
+
+            channels = firebase.get_all_channels()
+            for i in channels:
+                channel = self.get_channel(i)
+                await channel.send("Steam services are down!")
         elif steam_status['result']['services']['SessionsLogon'] == "normal" and not self.previous_status:
             self.previous_status = True
-            await self.wait_until_ready()
-            channel = self.get_channel(891028959041585162)
-            await channel.send("Steam services is back up.")
+
+            channels = firebase.get_all_channels()
+            for i in channels:
+                channel = self.get_channel(i)
+                await channel.send("Steam services are back up!")
 
 
 client = Vapor(description="Bringing Steam features as a Discord bot.")

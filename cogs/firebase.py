@@ -5,7 +5,10 @@ from firebase_admin import credentials
 from firebase_admin import db
 
 # Fetch the service account key JSON file contents
-cred = credentials.Certificate(os.getcwd() + "/keys/firebase.json")
+if __name__ == "__main__":
+    cred = credentials.Certificate(os.getcwd() + "/../keys/firebase.json")
+else:
+    cred = credentials.Certificate(os.getcwd() + "/keys/firebase.json")
 
 # Initialize the app with a service account, granting admin privileges
 firebase_admin.initialize_app(cred, {
@@ -27,6 +30,18 @@ def get_news_channel(guild_id):
     if channel is not None:
         return channel[0]["news_channel"]
     return channel
+
+
+def get_all_channels():
+    ref = db.reference("Guilds/")
+    data = ref.get("")
+
+    if data is not None:
+        channels = []
+        for i in data:
+            channels.append(data[i]["news_channel"])
+        return channels
+    return data
 
 
 def set_steam_id(discord_id, steam_id):
